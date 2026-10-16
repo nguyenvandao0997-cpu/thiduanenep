@@ -1,0 +1,1874 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CLASS RANK - Trường PTDTNT THCS & THPT Đắk Song</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Excel Export & Import -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- FIREBASE COMPAT LIBRARIES (BẢN TƯƠNG THÍCH CHỐNG CHẶN TRÊN APPS SCRIPT) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f0f9ff; margin: 0; padding: 0; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 12px 20px; border-radius: 8px; color: white; font-weight: 500; box-shadow: 0 4px 6px rgba(0,0,0,0.1); opacity: 0; transform: translateY(20px); transition: all 0.3s ease; display: flex; align-items: center; gap: 10px; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast-success { background-color: #0ea5e9; } .toast-error { background-color: #ef4444; } .toast-warning { background-color: #f59e0b; }
+        
+        .modal-enter { animation: modalFadeIn 0.3s ease-out forwards; }
+        @keyframes modalFadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pulse-sync { 0% { transform: scale(0.95); opacity: 0.5; } 50% { transform: scale(1); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.5; } }
+        .cloud-syncing { animation: pulse-sync 1.5s infinite; }
+
+        /* Hiệu ứng Icon phong cách Desktop */
+        .icon-box { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .icon-box:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .icon-box:active { transform: translateY(0) scale(0.98); }
+    </style>
+</head>
+<body class="text-gray-800 antialiased overflow-hidden h-screen w-full flex flex-col">
+
+    <div id="toast-container"></div>
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="absolute inset-0 z-[100] flex items-center justify-center bg-gradient-to-br from-sky-100 to-sky-300 p-4 transition-opacity duration-500">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[95vh] overflow-y-auto no-scrollbar flex flex-col p-6 sm:p-10 border-t-8 border-sky-600 relative overflow-hidden">
+            <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-sky-100 rounded-full opacity-50"></div>
+            <div class="absolute bottom-0 left-0 -mb-4 -ml-4 w-20 h-20 bg-amber-100 rounded-full opacity-50"></div>
+            
+            <div class="flex justify-center mb-6 relative z-10">
+                <div class="w-24 h-24 sm:w-28 sm:h-28 relative flex items-center justify-center bg-white rounded-full border-4 border-sky-400 shadow-lg p-1 overflow-hidden">
+                    <img src="https://i.postimg.cc/YqTBpm7v/LOGO-NOI-TRU.png" alt="Logo Đắk Song" class="w-full h-full object-contain rounded-full">
+                </div>
+            </div>
+            
+            <h2 class="text-3xl font-black text-center text-sky-800 mb-1 tracking-wide relative z-10">CLASS RANK</h2>
+            <div class="text-center mb-6 relative z-10"><span class="inline-flex items-center gap-1.5 px-3 py-1 bg-sky-50 text-sky-700 text-xs font-bold rounded-full border border-sky-200 shadow-sm"><i class="fas fa-globe"></i> classrank.vn</span></div>
+            <div id="cloud-status" class="text-center mb-6 text-xs font-bold text-amber-600 cloud-syncing relative z-10"><i class="fas fa-sync fa-spin"></i> Đang kết nối máy chủ Đám mây...</div>
+
+            <form id="login-form" class="space-y-5 relative z-10">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Tài khoản</label>
+                    <div class="relative"><div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><i class="fas fa-user text-gray-400"></i></div><input type="text" id="username" required class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm shadow-sm transition" placeholder="Nhập tài khoản..."></div>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Mật khẩu</label>
+                    <div class="relative"><div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><i class="fas fa-lock text-gray-400"></i></div><input type="password" id="password" required class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm shadow-sm transition" placeholder="••••••••"></div>
+                </div>
+                <button type="submit" id="btn-login" disabled class="w-full bg-gray-400 text-white font-bold py-3.5 px-4 rounded-xl transition duration-300 shadow-md hover:shadow-lg cursor-not-allowed">ĐĂNG NHẬP</button>
+            </form>
+            <div class="mt-6 text-center text-xs text-gray-500 border-t pt-5 relative z-10">
+                <p>Nền tảng quản lý thi đua nền nếp tích hợp Cloud</p>
+                <p class="font-bold text-sky-700 mt-1">Đ/c Nguyễn Văn Đạo - Phó Bí thư Đoàn trường</p>
+                <p>PTDTNT THCS và THPT Đắk Song</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP WRAPPER (DESKTOP GRID STYLE) -->
+    <div id="app-wrapper" class="flex flex-col md:flex-row h-full w-full opacity-0 hidden transition-opacity duration-500 overflow-hidden bg-[#e8f0fe]">
+        
+        <!-- SIDEBAR (APP GRID) -->
+        <div class="w-full md:w-[340px] flex-shrink-0 bg-white border-b md:border-b-0 md:border-r border-gray-200 overflow-x-auto md:overflow-y-auto no-scrollbar shadow-xl z-20 flex flex-row md:flex-col p-3 md:p-5 items-center md:items-stretch">
+            
+            <div class="hidden md:flex items-center gap-3 mb-6 border-b pb-5">
+                <div class="w-14 h-14 bg-sky-50 rounded-full border-2 border-sky-400 shadow-sm p-0.5 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                    <img src="https://i.postimg.cc/YqTBpm7v/LOGO-NOI-TRU.png" class="w-full h-full object-contain rounded-full">
+                </div>
+                <div>
+                    <h1 class="text-xl font-black text-sky-800 tracking-tight leading-none uppercase">Class Rank</h1>
+                    <p class="text-[12px] font-bold text-gray-600 mt-1" id="user-display-name">Người dùng</p>
+                    <p class="text-[10px] text-sky-600 font-bold bg-sky-50 inline-block px-2 py-0.5 rounded-full mt-0.5 border border-sky-100" id="user-role-name">Vai trò</p>
+                </div>
+            </div>
+
+            <div class="md:hidden flex-shrink-0 mr-4 flex flex-col items-center justify-center border-r pr-4">
+                <img src="https://i.postimg.cc/YqTBpm7v/LOGO-NOI-TRU.png" class="w-10 h-10 object-contain rounded-full mb-1">
+                <p class="text-[9px] font-bold text-sky-800">CLASS RANK</p>
+            </div>
+
+            <!-- Lưới Icon -->
+            <div class="flex flex-row md:grid md:grid-cols-3 gap-2 md:gap-y-6 md:gap-x-2 flex-grow md:content-start px-1 pb-2 md:pb-0">
+                <div class="icon-box cursor-pointer flex flex-col items-center text-center p-2 rounded-xl hover:bg-sky-50 min-w-[80px]" onclick="window.switchView('dashboard')">
+                    <div class="w-12 h-12 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-md mb-2"><i class="fas fa-chart-line"></i></div>
+                    <span class="text-[11px] font-bold text-gray-700 leading-tight">Xếp hạng<br>Tuần</span>
+                </div>
+                
+                <div class="icon-box cursor-pointer flex flex-col items-center text-center p-2 rounded-xl hover:bg-sky-50 min-w-[80px]" onclick="window.switchView('history')">
+                    <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-md mb-2"><i class="fas fa-search"></i></div>
+                    <span class="text-[11px] font-bold text-gray-700 leading-tight">Tra cứu<br>& Báo cáo</span>
+                </div>
+                
+                <div class="icon-box cursor-pointer flex flex-col items-center text-center p-2 rounded-xl hover:bg-sky-50 min-w-[80px]" id="nav-violation" onclick="window.switchView('violation')">
+                    <div class="w-12 h-12 bg-gradient-to-br from-red-400 to-red-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-md mb-2"><i class="fas fa-minus-circle"></i></div>
+                    <span class="text-[11px] font-bold text-gray-700 leading-tight">Nhập lỗi<br>Vi phạm</span>
+                </div>
+                
+                <div class="icon-box cursor-pointer flex flex-col items-center text-center p-2 rounded-xl hover:bg-sky-50 min-w-[80px]" id="nav-bonus" onclick="window.switchView('bonus')">
+                    <div class="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-md mb-2"><i class="fas fa-plus-circle"></i></div>
+                    <span class="text-[11px] font-bold text-gray-700 leading-tight">Nhập điểm<br>Cộng</span>
+                </div>
+                
+                <div class="icon-box cursor-pointer flex flex-col items-center text-center p-2 rounded-xl hover:bg-sky-50 min-w-[80px]" id="nav-learning" onclick="window.switchView('learning')">
+                    <div class="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-md mb-2"><i class="fas fa-book"></i></div>
+                    <span class="text-[11px] font-bold text-gray-700 leading-tight">Sổ Đầu Bài<br>(vnEdu)</span>
+                </div>
+                
+                <div class="icon-box cursor-pointer flex flex-col items-center text-center p-2 rounded-xl hover:bg-sky-50 min-w-[80px]" id="nav-admin" onclick="window.switchView('admin')">
+                    <div class="w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-800 rounded-2xl flex items-center justify-center text-white text-2xl shadow-md mb-2"><i class="fas fa-cogs"></i></div>
+                    <span class="text-[11px] font-bold text-gray-700 leading-tight">Cấu hình<br>Hệ thống</span>
+                </div>
+                
+                <div class="icon-box cursor-pointer flex flex-col items-center text-center p-2 rounded-xl hover:bg-sky-50 min-w-[80px]" id="nav-profiles" onclick="window.switchView('profiles')">
+                    <div class="w-12 h-12 bg-gradient-to-br from-teal-400 to-teal-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-md mb-2"><i class="fas fa-users-cog"></i></div>
+                    <span class="text-[11px] font-bold text-gray-700 leading-tight">Quản lý<br>Tài khoản</span>
+                </div>
+
+                <div class="md:hidden icon-box cursor-pointer flex flex-col items-center text-center p-2 rounded-xl hover:bg-red-50 min-w-[80px]" onclick="window.handleLogout()">
+                    <div class="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 text-2xl shadow-sm mb-2 border border-red-200"><i class="fas fa-power-off"></i></div>
+                    <span class="text-[11px] font-bold text-red-700 leading-tight">Đăng xuất</span>
+                </div>
+            </div>
+
+            <div class="hidden md:block mt-auto pt-4 border-t border-gray-100">
+                <div class="cursor-pointer flex items-center justify-center gap-2 p-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 transition shadow-sm border border-red-100" onclick="window.handleLogout()">
+                    <i class="fas fa-sign-out-alt"></i> <span class="font-bold text-sm">Đăng xuất an toàn</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT WORKSPACE -->
+        <div class="flex-grow relative bg-[#e8f0fe] h-full overflow-y-auto no-scrollbar shadow-inner flex flex-col" id="main-workspace">
+            
+            <div class="bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-blue-100/50 px-4 sm:px-8 py-3 flex justify-between items-center shadow-sm">
+                <div class="flex items-center gap-2 sm:gap-3 text-sky-800 font-bold text-sm sm:text-base">
+                    <button onclick="window.showWelcomeBanner()" class="w-8 h-8 rounded-lg bg-sky-100 hover:bg-sky-200 text-sky-700 flex items-center justify-center transition"><i class="fas fa-home"></i></button>
+                    <span class="text-gray-300">/</span>
+                    <span id="breadcrumb-title" class="tracking-wide">Bảng tin hệ thống</span>
+                </div>
+                <div class="text-xs sm:text-sm font-black text-blue-800 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-blue-100 flex items-center gap-2" id="current-week-display">
+                    <i class="fas fa-calendar-alt text-amber-500"></i> Đang tải...
+                </div>
+            </div>
+
+            <div id="welcome-banner" class="flex flex-col items-center justify-center min-h-[85%] p-4 sm:p-8 transition-all duration-500 w-full">
+                <h2 class="text-2xl sm:text-4xl font-black text-sky-800 mb-2 drop-shadow-sm text-center tracking-tight">HỆ THỐNG QUẢN LÝ THI ĐUA NỀN NẾP</h2>
+                <p class="text-sm sm:text-lg font-bold text-gray-600 mb-8 text-center uppercase tracking-widest">Trường PTDTNT THCS và THPT Đắk Song</p>
+                <img src="https://i.postimg.cc/QMcqK05x/chuc-mung-20-11.png" alt="Banner Chào Mừng" class="w-full max-w-5xl object-contain rounded-3xl shadow-xl border-8 border-white transform hover:scale-[1.01] transition duration-500 bg-white">
+                <div class="mt-10 bg-white/80 backdrop-blur p-4 rounded-xl shadow-sm border-l-4 border-l-blue-500 max-w-lg w-full flex items-start gap-4">
+                    <div class="text-3xl text-blue-500 pt-1"><i class="fas fa-cloud-check"></i></div>
+                    <div>
+                        <h4 class="font-bold text-blue-900 text-sm">Kết nối Đám mây Ổn định</h4>
+                        <p class="text-xs text-gray-600 mt-1">Dữ liệu thi đua được lưu trữ an toàn, tự động tính toán và đồng bộ ngay lập tức cho tất cả thiết bị.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEWS CONTAINER -->
+            <div id="views-container" class="p-4 sm:p-8 hidden max-w-7xl mx-auto w-full flex-grow">
+                
+                <!-- VIEW 1: BẢNG XẾP HẠNG & DASHBOARD -->
+                <div id="view-dashboard" class="hidden animate-fade-in">
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <!-- Biểu đồ cảnh báo vi phạm -->
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-red-100 flex flex-col relative min-h-[250px]">
+                            <h3 class="font-black text-gray-800 mb-2 flex items-center gap-2 border-b pb-2"><i class="fas fa-exclamation-triangle text-red-500"></i> CẢNH BÁO ĐIỂM NỀ NẾP TUẦN NÀY</h3>
+                            <div class="relative flex-grow w-full">
+                                <canvas id="violationChart"></canvas>
+                            </div>
+                            <p class="text-xs text-gray-500 text-center mt-2 font-medium italic">* Các lớp bị trừ điểm Nề nếp sẽ hiển thị trên biểu đồ này.</p>
+                        </div>
+
+                        <!-- Lịch sinh hoạt dưới cờ Tuần tới -->
+                        <div class="bg-gradient-to-br from-blue-50 to-sky-100 p-5 rounded-2xl shadow-sm border border-blue-200 relative overflow-hidden flex flex-col">
+                            <div class="absolute top-0 right-0 opacity-10 text-9xl text-blue-500 -mt-4 -mr-4 pointer-events-none"><i class="fas fa-flag"></i></div>
+                            <h3 class="font-black text-blue-800 mb-4 flex items-center gap-2 relative z-10"><i class="fas fa-flag text-red-500"></i> LỊCH SINH HOẠT DƯỚI CỜ (TUẦN TỚI)</h3>
+                            
+                            <div id="shdc-container" class="relative z-10 bg-white/80 backdrop-blur rounded-xl p-4 shadow-sm border border-white flex-grow">
+                                <div class="flex items-center justify-center h-full text-gray-500 font-bold">Đang tải dữ liệu Kế hoạch...</div>
+                            </div>
+
+                            <div id="shdc-script-btn-container" class="relative z-10 mt-4 text-right hidden">
+                                <button onclick="window.openMCScriptModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-bold shadow-md transition flex items-center justify-center gap-2 w-full sm:w-auto ml-auto">
+                                    <i class="fas fa-magic text-amber-300"></i> Xem Kịch Bản MC (AI)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BẢNG XẾP HẠNG -->
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100 mt-6">
+                        <h2 class="text-xl sm:text-2xl font-black text-gray-800" id="dashboard-title"><i class="fas fa-trophy text-amber-500 mr-2"></i> BẢNG XẾP HẠNG THI ĐUA</h2>
+                        <div class="flex flex-wrap gap-2 w-full sm:w-auto" id="dashboard-actions">
+                            <button onclick="window.finalizeWeek()" class="bg-sky-600 hover:bg-sky-700 text-white px-6 py-2.5 rounded-lg font-bold shadow-md transition flex items-center justify-center gap-2"><i class="fas fa-save"></i> Cập Nhật / Chốt Tuần</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Hạng</th>
+                                        <th class="px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Lớp</th>
+                                        <th class="px-4 py-4 text-center text-xs font-bold text-sky-600 uppercase tracking-wider">Học Tập</th>
+                                        <th class="px-4 py-4 text-center text-xs font-bold text-red-500 uppercase tracking-wider">Lỗi (-)</th>
+                                        <th class="px-4 py-4 text-center text-xs font-bold text-green-600 uppercase tracking-wider">Cộng (+)</th>
+                                        <th class="px-4 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Nề Nếp</th>
+                                        <th class="px-4 py-4 text-center text-xs font-black text-sky-800 uppercase tracking-wider bg-sky-50">Tổng Điểm</th>
+                                        <th class="px-4 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Chi Tiết</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ranking-table-body" class="bg-white divide-y divide-gray-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="admin-plan-section" class="bg-white rounded-xl shadow-sm p-6 border-t-4 border-indigo-500 mb-6 mt-8 hidden">
+                        <h3 class="font-bold text-indigo-800 mb-4 text-lg"><i class="fas fa-pen-square mr-2"></i> Soạn Kế Hoạch Tuần Tới (Tự động điền vào File Word)</h3>
+                        <div class="space-y-4">
+                            <div><label class="block text-sm font-bold text-gray-700 mb-1">- Về nền nếp – tác phong:</label><input type="text" id="plan-nennep" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-indigo-500 text-sm bg-indigo-50/30" placeholder="..."></div>
+                            <div><label class="block text-sm font-bold text-gray-700 mb-1">- Về học tập:</label><input type="text" id="plan-hoctap" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-indigo-500 text-sm bg-indigo-50/30" placeholder="..."></div>
+                            <div><label class="block text-sm font-bold text-gray-700 mb-1">- Về vệ sinh – lao động:</label><input type="text" id="plan-vesinh" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-indigo-500 text-sm bg-indigo-50/30" placeholder="..."></div>
+                            <div><label class="block text-sm font-bold text-gray-700 mb-1">- Về phong trào Đoàn – Đội:</label><input type="text" id="plan-phongtrao" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-indigo-500 text-sm bg-indigo-50/30" placeholder="..."></div>
+                            <div><label class="block text-sm font-bold text-gray-700 mb-1">- Nội dung khác:</label><input type="text" id="plan-khac" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-indigo-500 text-sm bg-indigo-50/30" placeholder="..."></div>
+                        </div>
+                        <div class="flex justify-end mt-5 border-t pt-4">
+                            <button onclick="window.saveWeeklyPlan()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-bold shadow transition flex items-center gap-2"><i class="fas fa-cloud-upload-alt"></i> Lưu Kế Hoạch</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 2: LỊCH SỬ & TỔNG HỢP -->
+                <div id="view-history" class="hidden animate-fade-in">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <h2 class="text-xl sm:text-2xl font-black text-gray-800"><i class="fas fa-chart-pie text-sky-500 mr-2"></i> TRA CỨU & BÁO CÁO</h2>
+                        <div class="flex flex-wrap gap-2 w-full md:w-auto bg-gray-50 p-2 rounded-lg border border-gray-200">
+                            <select id="history-view-mode" onchange="window.toggleHistoryMode()" class="p-2 border border-gray-300 rounded-lg text-sm font-bold text-sky-800 bg-white flex-grow sm:flex-grow-0 focus:ring-2 focus:ring-sky-500 outline-none">
+                                <option value="week">Xem lại theo Tuần</option>
+                                <option value="month">Tổng hợp theo Tháng</option>
+                            </select>
+                            <select id="history-week-select" onchange="window.viewHistoryData()" class="p-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-700 bg-white flex-grow sm:flex-grow-0 focus:ring-2 focus:ring-sky-500 outline-none"></select>
+                            <select id="history-month-select" onchange="window.viewHistoryData()" class="hidden p-2 border border-gray-300 rounded-lg text-sm font-bold text-purple-700 bg-white flex-grow sm:flex-grow-0 focus:ring-2 focus:ring-sky-500 outline-none"></select>
+                            
+                            <button onclick="window.handleHistoryExport()" id="export-history-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold shadow-md transition flex items-center justify-center gap-2"><i class="fas fa-file-word"></i> Xuất Báo Cáo</button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                        <div class="p-3 bg-blue-50 border-b text-center hidden" id="monthly-summary-info">
+                            <span class="text-sm font-bold text-blue-800"><i class="fas fa-info-circle mr-1"></i> Điểm của Tháng được tính bằng TRUNG BÌNH CỘNG các tuần trong tháng đó.</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Hạng</th>
+                                        <th class="px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Lớp</th>
+                                        <th class="px-4 py-4 text-center text-xs font-bold text-sky-600 uppercase tracking-wider" id="col-learning-title">Học Tập</th>
+                                        <th class="px-4 py-4 text-center text-xs font-bold text-red-500 uppercase tracking-wider" id="col-deduct-title">Lỗi (-)</th>
+                                        <th class="px-4 py-4 text-center text-xs font-bold text-green-600 uppercase tracking-wider" id="col-bonus-title">Cộng (+)</th>
+                                        <th class="px-4 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider" id="col-conduct-title">Nề Nếp</th>
+                                        <th class="px-4 py-4 text-center text-xs font-black text-sky-800 uppercase tracking-wider bg-sky-50">Tổng Điểm</th>
+                                        <th class="px-4 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Chi Tiết</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-table-body" class="bg-white divide-y divide-gray-100">
+                                    <tr><td colspan="8" class="px-4 py-12 text-center text-gray-400 font-medium italic"><i class="fas fa-inbox text-4xl block mb-2 text-gray-300"></i> Vui lòng chọn Tuần hoặc Tháng để xem</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 3: NHẬP VI PHẠM -->
+                <div id="view-violation" class="hidden animate-fade-in">
+                    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden border-t-8 border-red-500">
+                        <div class="p-6 bg-red-50/50 border-b border-red-100 flex items-center gap-3">
+                            <div class="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-white text-xl shadow-inner"><i class="fas fa-minus-circle"></i></div>
+                            <div>
+                                <h2 class="text-2xl font-black text-red-800">GHI NHẬN LỖI VI PHẠM</h2>
+                                <p class="text-sm font-semibold text-red-600">Trừ điểm trực tiếp vào bảng xếp hạng</p>
+                            </div>
+                        </div>
+                        <form id="violation-form" onsubmit="window.saveViolation(event)" class="p-6 sm:p-8 space-y-6">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Ngày vi phạm (T2 - T7) <span class="text-red-500">*</span></label>
+                                    <input type="date" id="violation-date" onchange="window.checkValidDate(this)" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none transition font-semibold text-gray-800">
+                                    <div id="violation-date-info" class="mt-2 text-xs"></div>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Chọn Lớp <span class="text-red-500">*</span></label>
+                                    <select id="violation-class" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none transition text-xl font-black text-red-800 bg-white">
+                                        <option value="">-- Chọn lớp --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-4 bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                                <div><label class="block text-sm font-bold text-gray-700 mb-2">1. Nhóm vi phạm <span class="text-red-500">*</span></label><select id="violation-group" onchange="window.updateViolationGroupOptions()" required class="w-full p-3 border border-gray-300 rounded-lg font-bold text-gray-700 focus:ring-2 focus:ring-red-500 outline-none bg-gray-50"><option value="">-- Chọn nhóm vi phạm trước --</option></select></div>
+                                <div><label class="block text-sm font-bold text-gray-700 mb-2">2. Nội dung chi tiết <span class="text-red-500">*</span></label><select id="violation-code" onchange="window.updateViolationPreview()" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"><option value="">-- Vui lòng chọn nhóm trước --</option></select></div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4 bg-red-50 p-5 rounded-xl border border-red-200 items-center shadow-inner">
+                                <div>
+                                    <label class="block text-sm font-bold text-red-800 mb-2">Số lượng / Số lần</label>
+                                    <input type="number" id="violation-qty" min="1" value="1" oninput="window.updateViolationPreview()" required class="w-full p-3 border border-red-300 rounded-lg text-center text-2xl font-black text-red-700 focus:ring-2 focus:ring-red-500 outline-none shadow-sm">
+                                </div>
+                                <div class="flex flex-col justify-center items-center bg-white rounded-xl border-2 border-red-300 p-3 shadow-md h-full">
+                                    <span class="text-xs font-bold text-red-500 uppercase tracking-widest mb-1">Tổng điểm trừ</span>
+                                    <span id="violation-total-preview" class="text-4xl font-black text-red-600">-0</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2"><i class="fas fa-comment-alt text-gray-400 mr-1"></i> Ghi chú (Tên HS, chi tiết cụ thể...)</label>
+                                <input type="text" id="violation-note" class="w-full p-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 outline-none shadow-sm transition" placeholder="Ví dụ: Nguyễn Văn A vứt rác ngoài hành lang...">
+                            </div>
+                            <button type="submit" class="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-black py-4 rounded-xl shadow-lg transition transform hover:-translate-y-1 text-lg flex justify-center items-center gap-2 tracking-wide"><i class="fas fa-cloud-upload-alt text-2xl"></i> LƯU VÀO ĐÁM MÂY</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- VIEW 4: NHẬP ĐIỂM CỘNG -->
+                <div id="view-bonus" class="hidden animate-fade-in">
+                    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden border-t-8 border-green-500">
+                        <div class="p-6 bg-green-50/50 border-b border-green-100 flex items-center gap-3">
+                            <div class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white text-xl shadow-inner"><i class="fas fa-plus-circle"></i></div>
+                            <div>
+                                <h2 class="text-2xl font-black text-green-800">GHI NHẬN ĐIỂM CỘNG</h2>
+                                <p class="text-sm font-semibold text-green-600">Cộng điểm trực tiếp vào bảng xếp hạng</p>
+                            </div>
+                        </div>
+                        <form id="bonus-form" onsubmit="window.saveBonus(event)" class="p-6 sm:p-8 space-y-6">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Ngày ghi nhận (T2 - T7) <span class="text-red-500">*</span></label>
+                                    <input type="date" id="bonus-date" onchange="window.checkValidDate(this)" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition font-semibold text-gray-800">
+                                    <div id="bonus-date-info" class="mt-2 text-xs"></div>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Chọn Lớp <span class="text-red-500">*</span></label>
+                                    <select id="bonus-class" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition text-xl font-black text-green-800 bg-white">
+                                        <option value="">-- Chọn lớp --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-4 bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                                <div><label class="block text-sm font-bold text-gray-700 mb-2">1. Nhóm thành tích <span class="text-red-500">*</span></label><select id="bonus-group" onchange="window.updateBonusGroupOptions()" required class="w-full p-3 border border-gray-300 rounded-lg font-bold text-gray-700 focus:ring-2 focus:ring-green-500 outline-none bg-gray-50"><option value="">-- Chọn nhóm thành tích trước --</option></select></div>
+                                <div><label class="block text-sm font-bold text-gray-700 mb-2">2. Nội dung chi tiết <span class="text-red-500">*</span></label><select id="bonus-code" onchange="window.updateBonusPreview()" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"><option value="">-- Vui lòng chọn nhóm trước --</option></select></div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4 bg-green-50 p-5 rounded-xl border border-green-200 items-center shadow-inner">
+                                <div>
+                                    <label class="block text-sm font-bold text-green-800 mb-2">Số lượng / Số lần</label>
+                                    <input type="number" id="bonus-qty" min="1" value="1" oninput="window.updateBonusPreview()" required class="w-full p-3 border border-green-300 rounded-lg text-center text-2xl font-black text-green-700 focus:ring-2 focus:ring-green-500 outline-none shadow-sm">
+                                </div>
+                                <div class="flex flex-col justify-center items-center bg-white rounded-xl border-2 border-green-300 p-3 shadow-md h-full">
+                                    <span class="text-xs font-bold text-green-600 uppercase tracking-widest mb-1">Tổng điểm cộng</span>
+                                    <span id="bonus-total-preview" class="text-4xl font-black text-green-600">+0</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2"><i class="fas fa-comment-alt text-gray-400 mr-1"></i> Ghi chú (Tên HS, chi tiết cụ thể...)</label>
+                                <input type="text" id="bonus-note" class="w-full p-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none shadow-sm transition" placeholder="Ví dụ: Nguyễn Văn B nhặt được của rơi...">
+                            </div>
+                            <button type="submit" class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-black py-4 rounded-xl shadow-lg transition transform hover:-translate-y-1 text-lg flex justify-center items-center gap-2 tracking-wide"><i class="fas fa-cloud-upload-alt text-2xl"></i> LƯU VÀO ĐÁM MÂY</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- VIEW 5: SỔ ĐẦU BÀI -->
+                <div id="view-learning" class="hidden animate-fade-in">
+                    <div class="bg-white rounded-xl shadow-sm p-6 sm:p-8 border-t-8 border-purple-500">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-gray-100 pb-6">
+                            <div>
+                                <h2 class="text-2xl font-black text-gray-800 flex items-center gap-3"><i class="fas fa-book-reader text-purple-500 text-3xl"></i> NHẬP ĐIỂM SỔ ĐẦU BÀI</h2>
+                                <p class="text-sm font-bold text-gray-500 mt-2">Hỗ trợ điền tay hoặc đồng bộ 1 chạm từ file Excel vnEdu</p>
+                            </div>
+                            <div class="flex flex-wrap gap-3 w-full md:w-auto bg-gray-50 p-2 rounded-xl border border-gray-200">
+                                <select id="learning-week-select" onchange="window.renderLearningScores()" class="p-2.5 border border-purple-300 rounded-lg text-sm font-black text-purple-800 focus:ring-2 focus:ring-purple-500 bg-white outline-none flex-grow md:flex-grow-0 min-w-[150px] shadow-sm"></select>
+                                
+                                <label class="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-lg font-bold shadow-md flex items-center justify-center gap-2 cursor-pointer transition flex-grow md:flex-grow-0">
+                                    <i class="fas fa-file-excel text-lg"></i> Nhập từ vnEdu
+                                    <input type="file" accept=".xls, .xlsx, .csv" onchange="window.handleExcelUpload(event)" class="hidden">
+                                </label>
+                                
+                                <button onclick="window.saveLearningScores()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-lg font-bold shadow-md flex items-center justify-center gap-2 flex-grow md:flex-grow-0 transition"><i class="fas fa-cloud-upload-alt text-lg"></i> Lưu Điểm</button>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4" id="learning-score-grid"></div>
+                    </div>
+                </div>
+
+                <!-- VIEW 6: QUẢN TRỊ ADMIN -->
+                <div id="view-admin" class="hidden animate-fade-in max-w-5xl mx-auto space-y-6">
+                    
+                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-l-gray-800">
+                        <h2 class="text-lg font-black text-gray-800 mb-2 flex items-center gap-2"><i class="fas fa-chalkboard text-gray-600"></i> QUẢN LÝ DANH SÁCH LỚP</h2>
+                        <p class="text-sm font-semibold text-gray-500 mb-4">Thêm, sửa, xóa các lớp của trường. Ngăn cách nhau bởi dấu phẩy (,).</p>
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <input type="text" id="cfg-classes" class="w-full p-3.5 border border-gray-300 rounded-lg font-black text-gray-800 focus:ring-2 focus:ring-gray-800 bg-gray-50 outline-none shadow-inner" placeholder="VD: 6A, 7A, 8A, 9A, 10A...">
+                            <button onclick="window.saveClassList()" class="bg-gray-800 hover:bg-gray-900 text-white px-8 py-3.5 rounded-lg font-bold shadow transition whitespace-nowrap"><i class="fas fa-save mr-2"></i> Cập nhật Lớp</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-l-blue-500">
+                        <h2 class="text-lg font-black text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-calendar-alt text-blue-500"></i> THIẾT LẬP LỊCH TRÌNH TỰ ĐỘNG</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 items-end bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                            <div><label class="block text-sm font-bold text-gray-700 mb-2">Ngày bắt đầu Học kỳ 1 (Tuần 1)</label><input type="date" id="cfg-hk1" class="w-full p-3 border border-gray-300 rounded-lg font-bold text-blue-800 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"></div>
+                            <div><label class="block text-sm font-bold text-gray-700 mb-2">Ngày bắt đầu Học kỳ 2 (Tuần 19)</label><input type="date" id="cfg-hk2" class="w-full p-3 border border-gray-300 rounded-lg font-bold text-blue-800 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"></div>
+                            <button onclick="window.autoGenerateWeeks()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-bold shadow-md flex items-center justify-center gap-2 transition w-full"><i class="fas fa-magic"></i> Tự động tính Lịch học</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-6">
+                        <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-l-amber-500">
+                            <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                                <h2 class="text-lg font-black text-gray-800 flex items-center gap-2"><span><i class="fas fa-edit text-amber-500"></i> <span id="form-mode-title">THÊM DANH MỤC THI ĐUA</span></span><button type="button" onclick="window.resetCatForm()" id="btn-cancel-edit" class="hidden text-xs bg-gray-200 hover:bg-gray-300 px-3 py-1.5 ml-3 rounded-md font-bold text-gray-700 transition">Hủy sửa</button></h2>
+                                <button onclick="window.forceSyncDictToCloud()" class="bg-white hover:bg-red-50 text-red-600 text-xs px-4 py-2 rounded-lg shadow-sm border border-red-200 flex items-center gap-2 font-bold transition">
+                                    <i class="fas fa-undo"></i> Khôi phục Thang điểm Chuẩn
+                                </button>
+                            </div>
+                            <form id="cat-form" onsubmit="window.saveManualCategory(event)" class="space-y-5 bg-amber-50/30 p-5 rounded-xl border border-amber-100">
+                                <input type="hidden" id="edit-original-code" value="">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                    <div><label class="block text-sm font-bold text-gray-700 mb-2">Phân loại</label><select id="man-type" required class="w-full p-3 border border-gray-300 rounded-lg bg-white text-sm font-bold focus:ring-2 focus:ring-amber-500 outline-none"><option value="MINUS">Lỗi vi phạm (-)</option><option value="PLUS">Điểm cộng (+)</option></select></div>
+                                    <div><label class="block text-sm font-bold text-gray-700 mb-2">Mã Code (Viết liền không dấu)</label><input type="text" id="man-code" required placeholder="VD: TP03" class="w-full p-3 border border-gray-300 rounded-lg uppercase text-sm font-bold focus:ring-2 focus:ring-amber-500 outline-none shadow-inner"></div>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                                    <div class="sm:col-span-2"><label class="block text-sm font-bold text-gray-700 mb-2">Tên Nhóm Phân Loại</label><input type="text" id="man-group" required placeholder="VD: Tác phong" class="w-full p-3 border border-gray-300 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-amber-500 outline-none shadow-inner"></div>
+                                    <div><label class="block text-sm font-bold text-gray-700 mb-2">Mức Điểm Tương Ứng</label><input type="number" id="man-score" required min="1" class="w-full p-3 border border-gray-300 rounded-lg text-center text-lg font-black text-amber-700 focus:ring-2 focus:ring-amber-500 outline-none shadow-inner bg-amber-50"></div>
+                                </div>
+                                <div><label class="block text-sm font-bold text-gray-700 mb-2">Nội dung chi tiết hạng mục</label><input type="text" id="man-name" required placeholder="VD: Học sinh đi học muộn sau 7h00..." class="w-full p-3 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none shadow-inner"></div>
+                                <button type="submit" id="btn-submit-cat" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3.5 rounded-lg shadow-md transition text-base tracking-wide mt-2">LƯU VÀ ÁP DỤNG NGAY</button>
+                            </form>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                            <div class="p-5 border-b bg-gray-50 rounded-t-xl">
+                                <h2 class="text-lg font-black text-gray-800 flex items-center gap-2"><i class="fas fa-list text-gray-500"></i> DANH MỤC THANG ĐIỂM ĐANG ÁP DỤNG</h2>
+                            </div>
+                            <div class="overflow-x-auto max-h-[500px]">
+                                <table class="min-w-full divide-y divide-gray-200 relative">
+                                    <thead class="bg-white sticky top-0 z-10 shadow-sm">
+                                        <tr><th class="px-5 py-3.5 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Loại</th><th class="px-5 py-3.5 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Nhóm</th><th class="px-5 py-3.5 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Mã Code</th><th class="px-5 py-3.5 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Nội dung chi tiết</th><th class="px-5 py-3.5 text-center text-xs font-black text-gray-500 uppercase tracking-wider">Điểm</th><th class="px-5 py-3.5 text-center text-xs font-black text-gray-500 uppercase tracking-wider">Thao tác</th></tr>
+                                    </thead>
+                                    <tbody id="dict-table-body" class="bg-white divide-y divide-gray-100 text-sm"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- VIEW 7: TÀI KHOẢN -->
+                <div id="view-profiles" class="hidden animate-fade-in max-w-6xl mx-auto">
+                    <div class="bg-white rounded-xl shadow-sm p-6 sm:p-8 border-t-8 border-teal-500">
+                        <div class="flex justify-between items-center mb-8 border-b border-gray-100 pb-4">
+                            <h2 class="text-2xl font-black text-gray-800 flex items-center gap-3"><i class="fas fa-users-cog text-teal-500 text-3xl"></i> QUẢN LÝ TÀI KHOẢN ĐÁM MÂY</h2>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <div class="lg:col-span-1 bg-teal-50/50 rounded-2xl p-6 border border-teal-100 shadow-sm h-fit sticky top-24">
+                                <h3 class="font-black text-teal-800 mb-6 text-lg border-b border-teal-200 pb-2"><i class="fas fa-user-plus mr-2 text-teal-500"></i> Cấp / Sửa Tài Khoản</h3>
+                                <form id="user-form" onsubmit="window.saveUser(event)" class="space-y-5">
+                                    <input type="hidden" id="edit-user-id" value="">
+                                    <div><label class="block text-sm font-bold text-gray-700 mb-2">Vai trò hệ thống</label><select id="user-role" required class="w-full p-3 border border-gray-300 rounded-xl font-bold text-gray-700 bg-white focus:ring-2 focus:ring-teal-500 outline-none"><option value="gvcn">GV Chủ nhiệm (Giới hạn lớp)</option><option value="codo">Đội cờ đỏ (Nhập liệu)</option><option value="admin">Quản trị viên (Toàn quyền)</option></select></div>
+                                    <div id="gvcn-class-wrapper">
+                                        <label class="block text-sm font-bold text-gray-700 mb-2">Gán Lớp Chủ Nhiệm <span class="text-red-500">*</span></label>
+                                        <select id="user-managedclass" class="w-full p-3 border border-gray-300 rounded-xl font-black text-teal-700 bg-white focus:ring-2 focus:ring-teal-500 outline-none shadow-sm">
+                                            <option value="">-- Chọn lớp --</option>
+                                        </select>
+                                    </div>
+                                    <div><label class="block text-sm font-bold text-gray-700 mb-2">Tên giáo viên / Người dùng</label><input type="text" id="user-displayname" required class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none font-semibold text-gray-800" placeholder="VD: Thầy Đạo"></div>
+                                    <div><label class="block text-sm font-bold text-gray-700 mb-2">Tên đăng nhập</label><input type="text" id="user-username" required class="w-full p-3 border border-gray-300 rounded-xl font-bold text-blue-700 focus:ring-2 focus:ring-teal-500 outline-none bg-blue-50" placeholder="Viết liền không dấu..."></div>
+                                    <div><label class="block text-sm font-bold text-gray-700 mb-2">Mật khẩu</label><input type="text" id="user-password" required class="w-full p-3 border border-gray-300 rounded-xl font-bold text-gray-800 focus:ring-2 focus:ring-teal-500 outline-none" value="123456"></div>
+                                    <div class="flex gap-3 pt-4"><button type="submit" class="flex-1 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-black py-3.5 rounded-xl shadow-md transition transform hover:-translate-y-1">LƯU TÀI KHOẢN</button><button type="button" onclick="window.resetUserForm()" id="btn-cancel-user" class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3.5 px-5 rounded-xl transition">Hủy</button></div>
+                                </form>
+                            </div>
+                            <div class="lg:col-span-2">
+                                <div class="overflow-x-auto bg-white border border-gray-200 rounded-2xl shadow-sm">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50"><tr><th class="px-5 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Người dùng</th><th class="px-5 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Tài khoản (Pass)</th><th class="px-5 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Vai trò / Lớp</th><th class="px-5 py-4 text-center text-xs font-black text-gray-500 uppercase tracking-wider">Thao tác</th></tr></thead>
+                                        <tbody id="users-table-body" class="bg-white divide-y divide-gray-100"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- FOOTER BẢN QUYỀN (ĐÃ GHIM CỐ ĐỊNH Ở ĐÂY) -->
+            <div class="mt-auto py-3.5 bg-gray-50/80 border-t border-gray-200 text-center text-[13px] font-semibold text-gray-500 w-full flex-shrink-0 z-10 backdrop-blur-sm">
+                &copy; 2026 Phần mềm thuộc bản quyền của Đồng chí Nguyễn Văn Đạo - Phó bí thư Đoàn trường PTDTNT THCS và THPT Đắk Song
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- MODAL CHI TIẾT LỚP -->
+    <div id="class-modal" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col modal-enter overflow-hidden">
+            <div class="flex justify-between items-center p-6 border-b bg-sky-50">
+                <div><h2 class="text-3xl font-black text-sky-800" id="modal-class-name">LỚP --</h2><p class="text-sm text-sky-600 font-bold mt-1" id="modal-week-name">Chi tiết thi đua</p></div>
+                <div class="flex gap-2"><button onclick="window.closeClassDetails()" class="text-sky-400 hover:text-red-500 p-2 text-3xl transition transform hover:rotate-90 duration-300"><i class="fas fa-times-circle"></i></button></div>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow bg-white relative">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 text-center flex flex-col justify-center"><p class="text-[10px] sm:text-xs text-gray-500 font-black uppercase tracking-wider mb-1">Điểm Học Tập</p><p class="text-2xl sm:text-3xl font-black text-sky-600" id="modal-learning-score">0</p></div>
+                    <div class="bg-red-50 p-4 rounded-2xl shadow-sm border border-red-100 text-center flex flex-col justify-center"><p class="text-[10px] sm:text-xs text-red-500 font-black uppercase tracking-wider mb-1">Tổng Lỗi (-)</p><p class="text-2xl sm:text-3xl font-black text-red-600" id="modal-deduction">0</p></div>
+                    <div class="bg-green-50 p-4 rounded-2xl shadow-sm border border-green-100 text-center flex flex-col justify-center"><p class="text-[10px] sm:text-xs text-green-600 font-black uppercase tracking-wider mb-1">Tổng Cộng (+)</p><p class="text-2xl sm:text-3xl font-black text-green-600" id="modal-bonus">0</p></div>
+                    <div class="bg-gradient-to-br from-sky-500 to-blue-600 p-4 rounded-2xl shadow-md text-center flex flex-col justify-center text-white"><p class="text-[10px] sm:text-xs text-sky-100 font-black uppercase tracking-wider mb-1">Điểm Nề Nếp</p><p class="text-3xl sm:text-4xl font-black text-white" id="modal-conduct">100</p></div>
+                </div>
+                <h3 class="font-black text-gray-800 mb-5 flex items-center gap-2 text-lg border-b pb-2"><i class="fas fa-history text-gray-400"></i> LỊCH SỬ GHI NHẬN TRONG TUẦN</h3>
+                <div class="space-y-4" id="modal-timeline"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL HIỂN THỊ KỊCH BẢN MC AI -->
+    <div id="mc-script-modal" class="fixed inset-0 bg-black/70 z-[150] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col modal-enter overflow-hidden border-t-8 border-blue-500">
+            <div class="flex justify-between items-center p-6 border-b bg-blue-50">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white"><i class="fas fa-magic"></i></div>
+                    <div>
+                        <h2 class="text-xl font-black text-blue-900 uppercase">Kịch bản MC Sinh hoạt dưới cờ</h2>
+                        <p class="text-sm font-bold text-blue-600 mt-1" id="mc-modal-theme">Chủ đề: ...</p>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('mc-script-modal').classList.add('hidden')" class="text-gray-400 hover:text-red-500 p-2 text-3xl transition"><i class="fas fa-times-circle"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow bg-white text-gray-800 font-medium leading-relaxed whitespace-pre-wrap text-sm sm:text-base" id="mc-script-content">
+                <!-- Nội dung MC hiển thị ở đây -->
+            </div>
+            <div class="p-4 border-t bg-gray-50 flex justify-end">
+                <button onclick="window.copyMCScript()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-md transition flex items-center gap-2">
+                    <i class="far fa-copy"></i> Copy Kịch bản
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUSTOM DIALOG -->
+    <div id="custom-dialog" class="fixed inset-0 bg-black/60 z-[200] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden modal-enter transform scale-100">
+            <div class="p-8 text-center">
+                <div id="dialog-icon" class="text-6xl mb-6"></div>
+                <h3 id="dialog-title" class="text-2xl font-black text-gray-800 mb-3">Thông báo</h3>
+                <p id="dialog-message" class="text-sm font-medium text-gray-600 mb-8 whitespace-pre-wrap leading-relaxed"></p>
+                <div class="flex gap-4 justify-center">
+                    <button id="dialog-cancel-btn" class="flex-1 px-5 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold transition hidden">Hủy thao tác</button>
+                    <button id="dialog-ok-btn" class="flex-1 px-5 py-3.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-bold transition shadow-md">Đồng ý</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT LOGIC (SỬ DỤNG FIREBASE COMPAT BẢO MẬT & ỔN ĐỊNH 100%) -->
+    <script type="text/javascript">
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyBQ674rvyTsjbPBNMXscVE1LFY3uo1Neaw",
+            authDomain: "class-rank-noi-tru-dak-song.firebaseapp.com",
+            projectId: "class-rank-noi-tru-dak-song",
+            storageBucket: "class-rank-noi-tru-dak-song.firebasestorage.app",
+            messagingSenderId: "1087793103334",
+            appId: "1:1087793103334:web:0c813d1d241f03529d1627",
+            measurementId: "G-HZ6Z7TF729"
+        };
+
+        const appId = 'class-rank-app-v2';
+
+        let app, db, auth;
+        try {
+            app = firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            auth = firebase.auth();
+        } catch (e) {
+            console.error("Firebase Init Error:", e);
+        }
+
+        // Bọc lại các hàm của Firebase Compat để dùng như mới, không làm hỏng code cũ
+        const signInAnonymously = (a) => a.signInAnonymously();
+        const doc = (d, ...paths) => d.doc(paths.join('/'));
+        const collection = (d, ...paths) => d.collection(paths.join('/'));
+        const setDoc = (ref, data) => ref.set(data);
+        const addDoc = (ref, data) => ref.add(data);
+        const deleteDoc = (ref) => ref.delete();
+        const onSnapshot = (ref, cb) => ref.onSnapshot(cb);
+
+        let CLASSES = [];
+        let currentUserRole = null; 
+        let currentUserClass = null; 
+        let currentUserName = null;
+        let currentModalClassId = null;
+        let globalActiveWeekId = 1;
+        let violationChartObj = null;
+
+        const DB = {
+            appConfig: { hk1Start: "", hk2Start: "", weekSchedules: [], currentWeekId: 1, academicYear: "2026 - 2027", plans: {}, classes: [] },
+            learningScores: {}, violationsLog: [], bonusesLog: [], history: [], users: []
+        };
+
+        const MONTH_LIST = ["Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12", "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5"];
+
+        // BỘ THANG ĐIỂM CHUẨN ĐẮK SONG
+        const DEFAULT_VIOLATIONS = [
+            { code: "SS01", group: "Sĩ số", name: "Vắng học có phép (Có giấy nằm viện không trừ)", score: 1, unit: "HS" },
+            { code: "SS02", group: "Sĩ số", name: "Vắng học không phép", score: 10, unit: "HS" },
+            { code: "SS03", group: "Sĩ số", name: "Bỏ tiết (GVBM ghi trực tiếp vào sổ đầu bài)", score: 20, unit: "HS" },
+            { code: "SS04", group: "Sĩ số", name: "Đi học muộn", score: 5, unit: "HS" },
+            { code: "SS05", group: "Sĩ số", name: "Về nhà lên trường muộn sau 7h00 ngày thứ 2", score: 5, unit: "HS" },
+            { code: "SS06", group: "Sĩ số", name: "Tập trung muộn", score: 2, unit: "HS" },
+            { code: "SS07", group: "Sĩ số", name: "Vắng tập trung", score: 5, unit: "HS" },
+            { code: "TP01", group: "Tác phong", name: "Mặc không đúng đồng phục; sai thiết kế; sai giày dép; không bảng tên, khăn quàng", score: 5, unit: "HS" },
+            { code: "TP02", group: "Tác phong", name: "Trang phục chưa nghiêm túc (chưa sơvin áo)", score: 5, unit: "HS" },
+            { code: "TP03", group: "Tác phong", name: "Tóc nhuộm màu. Nam để tóc gáy, tóc mai", score: 10, unit: "HS/lượt" },
+            { code: "NN01", group: "Nề nếp", name: "Sinh hoạt đầu giờ: Không nghiêm túc, mất trật tự; sử dụng điện thoại, chạy lung tung", score: 5, unit: "Lớp" },
+            { code: "NN02", group: "Nề nếp", name: "Ăn quà vặt trong lớp", score: 5, unit: "HS" },
+            { code: "NN03", group: "Nề nếp", name: "Trốn giờ sinh hoạt dưới cờ", score: 10, unit: "HS" },
+            { code: "NN04", group: "Nề nếp", name: "Vắng không phép trong các buổi lễ do nhà trường tổ chức", score: 10, unit: "HS" },
+            { code: "NN05", group: "Nề nếp", name: "Cờ đỏ lớp bỏ trực, trực không nghiêm túc, không hoàn thành nhiệm vụ", score: 5, unit: "HS" },
+            { code: "NN06", group: "Nề nếp", name: "Tổ chức đánh bài dưới mọi hình thức", score: 50, unit: "HS" },
+            { code: "VS01", group: "Vệ sinh", name: "Rác sai quy định; trực chậm/không đạt; bảng chưa lau; thiếu dụng cụ", score: 5, unit: "Lần" },
+            { code: "VS02", group: "Vệ sinh", name: "Không trực lớp, đổ rác; phòng ở bẩn, lộn xộn, không túi rác; không gấp chăn màn", score: 5, unit: "Lần" },
+            { code: "VS03", group: "Vệ sinh", name: "Vật dụng không gọn gàng, đặt sai vị trí; biểu bảng, cờ thi đua treo nhếch nhác", score: 5, unit: "Lần" },
+            { code: "PT01", group: "Phong trào", name: "Không tham gia phong trào do các Đoàn Đội phát động", score: 50, unit: "Lần" },
+            { code: "PT02", group: "Phong trào", name: "Tham gia không đúng thành phần, không đủ số lượng, không đúng hạn", score: 10, unit: "Lần" },
+            { code: "PT03", group: "Phong trào", name: "Không đăng ký chủ đề Sinh hoạt dưới cờ", score: 10, unit: "Lần" },
+            { code: "QC01", group: "Quy định cấm", name: "Nói tục, chửi thề, thái độ không tốt với bạn bè, cờ đỏ", score: 50, unit: "HS" },
+            { code: "QC02", group: "Quy định cấm", name: "Vẽ bậy lên tường, bàn ghế, lan can", score: 50, unit: "HS" },
+            { code: "QC03", group: "Quy định cấm", name: "Nam khuyên tai, tóc mai/gáy. Nữ trang điểm, sơn móng, trang sức. Tóc nhuộm", score: 10, unit: "HS" },
+            { code: "QC04", group: "Quy định cấm", name: "Thái độ, hành vi xúc phạm, vô lễ đến CB-GV-CNV", score: 100, unit: "HS" },
+            { code: "QC05", group: "Quy định cấm", name: "Ra ngoài phạm vi trường học khi chưa được phép", score: 50, unit: "HS" },
+            { code: "QC06", group: "Quy định cấm", name: "Tham gia đánh nhau trong và ngoài nhà trường", score: 100, unit: "HS" },
+            { code: "QC07", group: "Quy định cấm", name: "Vi phạm luật giao thông (Xe PKL, ko mũ BH, chở quá người, lạng lách)", score: 50, unit: "HS" },
+            { code: "QC08", group: "Quy định cấm", name: "Ngồi trên bàn học, bàn giáo viên, lan can", score: 10, unit: "HS" },
+            { code: "QC09", group: "Quy định cấm", name: "Mang/sử dụng thuốc hút, chất cấm, kích thích, đồ uống có cồn", score: 50, unit: "HS" },
+            { code: "QC10", group: "Quy định cấm", name: "Sử dụng, lưu trữ văn hoá phẩm không lành mạnh", score: 50, unit: "HS" },
+            { code: "QC11", group: "Quy định cấm", name: "Sử dụng điện thoại di động trong giờ học khi chưa được phép", score: 50, unit: "HS" },
+            { code: "QC12", group: "Quy định cấm", name: "Làm hỏng tài sản nhà trường, phá hoại cây xanh", score: 50, unit: "HS" },
+            { code: "QC13", group: "Quy định cấm", name: "Mang tài sản nhà trường ra ngoài khi chưa được phép", score: 50, unit: "HS" }
+        ];
+
+        const DEFAULT_BONUSES = [
+            { code: "DC01", group: "Hành vi tốt", name: "Nhặt được của rơi trả lại", score: 10, unit: "Lần" },
+            { code: "DC02", group: "Học tập", name: "Lớp đạt tuần học Tốt (100% giờ Tốt 10/10)", score: 50, unit: "Lớp" },
+            { code: "DC03", group: "Hành vi tốt", name: "Báo tin có lợi ngăn chặn hiện tượng xấu, quy định cấm", score: 20, unit: "HS" },
+            { code: "DC04", group: "Phong trào", name: "Hỗ trợ trường tổ chức lễ, hội: dọn dẹp, sân khấu...", score: 5, unit: "HS" },
+            { code: "DC05", group: "Phong trào", name: "Có HS tham gia HĐ chủ điểm: Văn nghệ, MC, khâu tổ chức...", score: 5, unit: "Lần" },
+            { code: "DC06", group: "Sĩ số", name: "Duy trì sĩ số tốt (100% không vắng, trễ, trốn, về giữa buổi)", score: 10, unit: "Lớp" },
+            { code: "DC07", group: "Phong trào", name: "Có đăng ký chủ đề và tổ chức Sinh hoạt dưới cờ", score: 5, unit: "Lớp" },
+            { code: "DC08", group: "Phong trào", name: "Tổ chức SHDC được BGH, Đoàn trường đánh giá tốt", score: 15, unit: "Lớp" },
+            { code: "TT01", group: "Thành tích thi", name: "Tham gia phong trào đạt giải Nhất (I)", score: 40, unit: "Lần" },
+            { code: "TT02", group: "Thành tích thi", name: "Tham gia phong trào đạt giải Nhì (II)", score: 30, unit: "Lần" },
+            { code: "TT03", group: "Thành tích thi", name: "Tham gia phong trào đạt giải Ba (III)", score: 20, unit: "Lần" },
+            { code: "TT04", group: "Thành tích thi", name: "Tham gia phong trào đạt giải Khuyến khích (KK)", score: 10, unit: "Lần" },
+            { code: "TT05", group: "Thành tích thi", name: "Có tham gia phong trào (không đạt giải)", score: 5, unit: "Lần" }
+        ];
+
+        // LỊCH SINH HOẠT VÀ KỊCH BẢN MC NHÚNG SẴN 2026-2027
+        const SHDC_SCHEDULE = {
+            6: { theme: "Đại hội Đoàn thành công – Quán triệt nghị quyết", classId: "11A", mcScript: "Kính thưa quý vị đại biểu, quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nSau phần Nghi lễ chào cờ trang nghiêm, thay mặt lớp 11A, em xin được phép điều hành chương trình sinh hoạt dưới cờ tuần này với chủ đề 'Đại hội Đoàn thành công – Quán triệt nghị quyết'.\n\nKính thưa toàn thể Đại hội, tuần qua, Đại hội đại biểu Đoàn TNCS Hồ Chí Minh trường chúng ta đã diễn ra thành công tốt đẹp. Đây là sự kiện chính trị quan trọng, mở ra một nhiệm kỳ mới đầy hứa hẹn. Xin trân trọng giới thiệu Ban chấp hành khóa mới ra mắt toàn trường (Mời các đồng chí bước lên phía trước). Chúng ta hãy dành một tràng pháo tay thật lớn chúc mừng Ban chấp hành mới!\n\nTiếp theo chương trình, em xin điểm qua những nội dung trọng tâm của Nghị quyết Đại hội trong 10 phút, giúp các chi đoàn nắm rõ mục tiêu phấn đấu trong năm học này... (Đại diện lớp đọc tóm tắt nghị quyết).\n\nKết thúc chương trình, xin kính mời quý thầy cô và các bạn cùng thưởng thức một tiết mục văn nghệ tự chọn đến từ chi đoàn 11A. Xin trân trọng kính mời!" },
+            7: { theme: "96 năm Ngày Phụ nữ Việt Nam (20/10)", classId: "6A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nLời đầu tiên, cho phép em thay mặt lớp 6A gửi đến các cô giáo, các bạn nữ sinh viên lời chúc sức khỏe, hạnh phúc và thành công nhân kỷ niệm 96 năm Ngày Phụ nữ Việt Nam 20/10.\n\nChủ đề sinh hoạt của chúng ta hôm nay là 'Tôn vinh người phụ nữ quanh em'. Phụ nữ Việt Nam từ xưa đến nay luôn giữ vai trò quan trọng, từ việc tề gia nội trợ đến xây dựng, bảo vệ Tổ quốc. Hôm nay, lớp 6A xin gửi tới thầy cô và các bạn một tiểu phẩm nhỏ / bài thơ tự sáng tác để bày tỏ lòng biết ơn sâu sắc đến những người mẹ, người cô đã luôn ân cần chăm sóc, dạy dỗ chúng em nên người.\n\n(Trình bày tiểu phẩm / Đọc thơ)\n\nĐể khép lại chương trình, chúng em xin kính tặng những bó hoa tươi thắm nhất đến đại diện các cô giáo trong Ban Giám hiệu nhà trường. Xin trân trọng kính mời cô..." },
+            8: { theme: "Nếp sống nội trú văn minh", classId: "8A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nTrường nội trú là ngôi nhà thứ hai của chúng ta, nơi tập thể học sinh cùng sinh hoạt, học tập và rèn luyện. Do đó, việc xây dựng 'Nếp sống nội trú văn minh' là vô cùng quan trọng. Đó cũng là chủ đề sinh hoạt dưới cờ tuần này do chi đoàn 8A phụ trách.\n\nTiêu chí của một phòng ở kiểu mẫu là Sạch – Gọn – Đoàn kết – Đúng giờ. Tuần qua, Liên đội và Đoàn trường đã tiến hành kiểm tra và nhận thấy có rất nhiều phòng duy trì nền nếp cực kỳ xuất sắc. Sau đây, xin mời các bạn cùng theo dõi một tình huống nhỏ mang tên 'Chuyện phòng tôi' do lớp 8A dàn dựng, để xem chúng ta có bắt gặp hình ảnh của chính mình trong đó không nhé!\n\n(Diễn tiểu phẩm)\n\nThông qua tiểu phẩm, chúng em hy vọng mỗi cá nhân sẽ nâng cao ý thức tự giác, giữ gìn vệ sinh chung. Sau đây, xin trân trọng kính mời thầy/cô phụ trách quản lý nội trú lên nhận xét và tuyên dương các phòng ở kiểu mẫu trong tháng 10 vừa qua." },
+            9: { theme: "An toàn giao thông, phòng chống tai nạn thương tích", classId: "7A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nTai nạn giao thông và thương tích học đường luôn là mối nguy hiểm rình rập, đe dọa sức khỏe và tính mạng của chúng ta. Nâng cao ý thức tự bảo vệ mình là thông điệp mà lớp 7A muốn gửi gắm qua buổi sinh hoạt dưới cờ tuần này.\n\nHôm nay, chúng ta sẽ không nghe những bài diễn văn dài dòng, mà hãy cùng tham gia một minigame 'Hỏi đáp nhanh - Xử lý tình huống giao thông'. Các bạn chú ý lắng nghe câu hỏi và giơ tay giành quyền trả lời để nhận phần quà hấp dẫn từ lớp 7A nhé!\n\n(Tổ chức hỏi đáp nhanh)\n\nChỉ với vài câu hỏi nhỏ, chúng ta đã ôn lại được rất nhiều kiến thức luật giao thông đường bộ. Tiếp theo chương trình, xin trân trọng kính mời đại diện các lớp lên ký cam kết thực hiện nghiêm túc quy định An toàn giao thông trong năm học này." },
+            10: { theme: "Ngày Pháp luật Việt Nam (09/11)", classId: "10A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nNhân kỷ niệm Ngày Pháp luật nước Cộng hòa xã hội chủ nghĩa Việt Nam 09/11, lớp 10A xin mang đến chủ đề sinh hoạt 'Sống và học tập theo hiến pháp, pháp luật'.\n\nPháp luật không phải là những điều khoản khô khan nằm trên giấy, mà là vòng tròn bảo vệ an toàn cho mỗi công dân. Đối với lứa tuổi học sinh, việc hiểu và tuân thủ pháp luật, đặc biệt là phòng chống tệ nạn xã hội như ma túy, thuốc lá điện tử là cực kỳ cấp thiết. \n\nSau đây, xin mời các bạn cùng theo dõi một video clip ngắn / tiểu phẩm tái hiện lại một tình huống dụ dỗ sử dụng thuốc lá điện tử ngay trước cổng trường, và xem cách các bạn học sinh trong clip đã xử lý như thế nào.\n\n(Trình diễn)\n\nKết thúc buổi sinh hoạt, chúng em xin kính chúc quý thầy cô một tuần làm việc hiệu quả, chúc các bạn học sinh có một tuần học tập tràn đầy năng lượng và an toàn!" },
+            11: { theme: "Tri ân thầy cô – Ngày Nhà giáo Việt Nam 20/11", classId: "12A", mcScript: "Kính thưa quý vị đại biểu, quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\n'Tôn sư trọng đạo' là truyền thống tốt đẹp ngàn đời của dân tộc ta. Trong không khí hân hoan hướng về kỷ niệm 44 năm Ngày Nhà giáo Việt Nam 20/11, tập thể lớp 12A xin được nhận vinh dự điều hành chương trình sinh hoạt dưới cờ tuần này.\n\nNăm nay là năm cuối cấp của chúng em. Quãng thời gian gắn bó với mái trường PTDTNT Đắk Song, với thầy cô đang dần khép lại. Có những lỗi lầm chưa kịp xin lỗi, có những biết ơn chưa dám ngỏ lời. Hôm nay, cho phép chúng em được nói lên tiếng lòng của mình qua những vần thơ, những ca khúc viết về người thầy.\n\n(Văn nghệ / Đọc thư tri ân)\n\nXin trân trọng kính mời quý thầy cô trong Ban Giám hiệu, cùng đại diện thầy cô giáo bước lên phía trước để đón nhận những bó hoa tươi thắm nhất – tượng trưng cho lòng biết ơn sâu sắc của toàn thể học sinh trường nhà gửi đến những người lái đò thầm lặng." },
+            12: { theme: "Xây dựng tình bạn đẹp – Nói không với bạo lực học đường", classId: "9A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nTuổi học trò là lứa tuổi đẹp nhất với những kỷ niệm hồn nhiên, trong sáng. Tuy nhiên, tình trạng bạo lực học đường vẫn đang là một vấn đề nhức nhối. 'Xây dựng tình bạn đẹp - Nói không với bạo lực học đường' chính là thông điệp lớp 9A muốn truyền tải trong buổi sáng hôm nay.\n\nBạo lực không chỉ là những tác động vật lý, mà còn là những lời nói sát thương, sự cô lập trên mạng xã hội. Để giải quyết vấn đề này, hôm nay lớp 9A xin chính thức ra mắt mô hình 'Hòm thư xanh' – nơi các bạn có thể chia sẻ những tâm tư, hoặc báo cáo các hành vi bắt nạt một cách ẩn danh, an toàn.\n\nSau đây, xin mời toàn trường cùng thưởng thức một tiểu phẩm ngắn về cách ứng xử văn minh khi có xích mích với bạn bè.\n\n(Biểu diễn tiểu phẩm)\n\nCảm ơn các bạn đã lắng nghe. Xin chúc toàn trường một tuần mới tràn ngập tình yêu thương và sự đoàn kết!" },
+            13: { theme: "Phòng chống HIV/AIDS, ma túy, thuốc lá điện tử", classId: "11A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nHưởng ứng Ngày Thế giới phòng chống AIDS (01/12), tập thể lớp 11A xin phép được thực hiện chủ đề sinh hoạt tuần này với chuyên đề: Tác hại của ma túy, thuốc lá điện tử và cách phòng tránh.\n\nHiện nay, thuốc lá điện tử và các dạng ma túy mới đang ngụy trang dưới nhiều hình thức tinh vi, len lỏi vào học đường, gây ra những hệ lụy khôn lường về sức khỏe và hệ thần kinh. Để giúp các bạn nhận diện rõ hơn về hiểm họa này, lớp 11A đã chuẩn bị một phần thuyết trình ngắn kết hợp hình ảnh trực quan.\n\n(Thuyết trình / Trình chiếu)\n\nChúng ta hãy cùng nhau kiên quyết nói 'KHÔNG' với ma túy và thuốc lá điện tử để bảo vệ tương lai của chính mình. Tiếp theo chương trình, xin kính mời đ/c Bí thư Đoàn trường lên nhận xét thi đua và tuyên dương các tập thể, cá nhân xuất sắc trong tháng 11 vừa qua." },
+            14: { theme: "Quyền và bổn phận của học sinh", classId: "7A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nNhân kỷ niệm Ngày Quốc tế Nhân quyền (10/12), lớp 7A rất vinh dự được trình bày chủ đề 'Quyền và bổn phận của học sinh nội trú'.\n\nChúng ta đều biết, trẻ em sinh ra có quyền được học tập, được bảo vệ và được chăm sóc. Nhưng đi liền với Quyền, là Bổn phận. Là học sinh, đặc biệt là học sinh nội trú, bổn phận của chúng ta là tuân thủ nội quy, tôn trọng thầy cô, hòa đồng với bạn bè và nỗ lực rèn luyện bản thân.\n\nHôm nay, lớp 7A có chuẩn bị 3 tình huống ứng xử thực tế thường gặp ở khu nội trú. Xin mời các bạn cùng xem và đưa ra cách giải quyết nhé!\n\n(Tổ chức giải quyết tình huống)\n\nCảm ơn sự tương tác rất nhiệt tình của các bạn. Kính chúc thầy cô và các bạn một tuần mới làm việc và học tập hiệu quả!" },
+            15: { theme: "80 năm Ngày Toàn quốc kháng chiến", classId: "10A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\n'Chúng ta thà hy sinh tất cả, chứ nhất định không chịu mất nước, nhất định không chịu làm nô lệ.' Lời kêu gọi Toàn quốc kháng chiến hào hùng của Chủ tịch Hồ Chí Minh cách đây tròn 80 năm (19/12/1946) vẫn còn vang vọng mãi. Đó là chủ đề sinh hoạt đặc biệt hôm nay do lớp 10A phụ trách.\n\nĐể tái hiện lại không khí sục sôi của những ngày Thủ đô 'quyết tử để Tổ quốc quyết sinh', chúng em xin phép được trình chiếu một đoạn phim tư liệu ngắn / kể một câu chuyện lịch sử về những cảm tử quân ôm bom ba càng lao vào xe tăng địch.\n\n(Trình chiếu / Kể chuyện)\n\nThế hệ trẻ chúng ta hôm nay được sống trong hòa bình là nhờ máu xương của cha ông đi trước. Tiếp nối hào khí đó, xin mời toàn trường cùng cất cao tiếng hát bài ca 'Giai điệu tự hào'. Chúc quý thầy cô và các bạn một tuần mới tràn đầy năng lượng!" },
+            16: { theme: "82 năm Quân đội nhân dân Việt Nam", classId: "8A", mcScript: "Kính thưa quý vị đại biểu, quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nHòa chung không khí cả nước chào mừng kỷ niệm 82 năm Ngày thành lập Quân đội nhân dân Việt Nam (22/12) và Ngày hội Quốc phòng toàn dân, chi đoàn 8A xin gửi đến quý vị đại biểu, thầy cô và các bạn chủ đề 'Tuổi trẻ với quốc phòng, an ninh'.\n\nHình ảnh 'Bộ đội Cụ Hồ' từ lâu đã trở thành biểu tượng cao đẹp trong lòng mỗi người dân Việt Nam. Hôm nay, chúng ta rất vinh dự được đón tiếp các bác cựu chiến binh / các đồng chí Công an xã đến giao lưu, trò chuyện và kể về những năm tháng quân ngũ hào hùng.\n\n(Mời đại biểu lên giao lưu / Hoặc học sinh kể chuyện về anh hùng lực lượng vũ trang)\n\nNhững câu chuyện chân thực hôm nay thực sự đã tiếp thêm ngọn lửa tự hào dân tộc cho lứa tuổi học sinh chúng em. Xin trân trọng cảm ơn các bác/các chú. Kính chúc các vị đại biểu, thầy cô và các bạn sức khỏe, bình an!" },
+            17: { theme: "Phương pháp tự học và thi trung thực", classId: "6A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nChỉ còn ít ngày nữa, chúng ta sẽ chính thức bước vào kỳ kiểm tra học kỳ I. Làm thế nào để ôn tập hiệu quả? Làm sao để chiến thắng áp lực thi cử? Chi đội 6A xin mang đến chủ đề sinh hoạt rất thiết thực hôm nay: 'Phương pháp tự học và thi trung thực'.\n\nHọc viện, điểm số là quan trọng, nhưng sự trung thực mới là thước đo phẩm giá của mỗi học sinh. Tuần qua, lớp 6A đã tổng hợp được một số mẹo tự học rất hay từ các anh chị khối 12. Sau đây, xin mời bạn... đại diện lớp lên chia sẻ lại bí kíp này.\n\n(Học sinh chia sẻ kinh nghiệm)\n\nBên cạnh đó, lớp 6A cũng xin phát động phong trào 'Đôi bạn cùng tiến - Cam kết thi trung thực'. Chúng em tin rằng, bằng nỗ lực tự thân, chúng ta sẽ gặt hái được những điểm số xứng đáng nhất. Chúc toàn trường có một kỳ thi học kỳ I thật thành công!" },
+            18: { theme: "Chào năm mới 2027 – 77 năm Ngày truyền thống HSSV", classId: "12A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nNăm cũ 2026 đã khép lại, nhường chỗ cho những tia nắng ấm áp của năm mới 2027. Sáng hôm nay, trong buổi chào cờ đầu tiên của năm mới, lớp 12A xin gửi đến chủ đề 'Chào năm mới 2027 - Tự hào truyền thống học sinh, sinh viên'.\n\nCách đây 77 năm, vào ngày 09/01/1950, cuộc biểu tình của Đoàn thanh niên cứu quốc và học sinh Sài Gòn - Chợ Lớn đã trở thành cột mốc lịch sử hào hùng, gắn liền với sự hy sinh anh dũng của anh Trần Văn Ơn. Để tưởng nhớ và phát huy truyền thống ấy, xin mời toàn trường cùng xem một hoạt cảnh ngắn tái hiện lại tinh thần bất diệt của học sinh, sinh viên Việt Nam.\n\n(Biểu diễn hoạt cảnh / Văn nghệ)\n\nNăm mới đã đến, thay mặt học sinh toàn trường, em xin kính chúc quý thầy cô dồi dào sức khỏe, gia đình an khang thịnh vượng; chúc các bạn học sinh một năm mới bứt phá, vươn lên đạt được mọi mục tiêu đã đề ra!" },
+            19: { theme: "Sơ kết học kỳ I: Nhìn lại và vươn lên", classId: "9A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nMột nửa chặng đường của năm học 2026 - 2027 đã đi qua. Hôm nay, lớp 9A rất vinh dự được điều hành buổi sinh hoạt dưới cờ với chủ đề 'Sơ kết học kỳ I: Nhìn lại và vươn lên'.\n\nHọc kỳ vừa qua ghi dấu sự nỗ lực không ngừng nghỉ của cả thầy và trò trường PTDTNT Đắk Song. Đã có những giọt mồ hôi, có những niềm vui khi nhận điểm tốt, và cũng có những tiếc nuối khi chưa đạt kết quả như ý. Nhưng quan trọng nhất, chúng ta đã cùng nhau cố gắng.\n\nTrong buổi sáng hôm nay, nhà trường và Đoàn trường sẽ tiến hành tuyên dương các tập thể lớp xuất sắc, các cá nhân đạt danh hiệu 'Học sinh 3 tốt', đoàn viên tiêu biểu trong học kỳ I. Xin trân trọng kính mời đ/c... thay mặt Ban Chấp hành lên công bố các quyết định khen thưởng.\n\n(Tiến hành khen thưởng)" },
+            20: { theme: "Học kỳ II – Đăng ký thi đua", classId: "7A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nChào mừng các bạn đã bước sang Học kỳ II của năm học. Khởi đầu mới luôn cần những mục tiêu mới. Do đó, chủ đề sinh hoạt tuần này do lớp 7A phụ trách là: 'Đăng ký thi đua - Xây dựng lớp học thân thiện'.\n\nĐể làm nóng bầu không khí buổi sáng đầu tuần, lớp 7A xin phép tổ chức một trò chơi tập thể nhỏ mang tên 'Kết nối yêu thương'. Xin mời đại diện mỗi lớp 2 bạn cùng lên sân khấu tham gia trò chơi này nhé!\n\n(Tổ chức trò chơi tập thể)\n\nTrò chơi vừa rồi đòi hỏi sự ăn ý và tinh thần đồng đội cực kỳ cao, giống như cách chúng ta xây dựng một tập thể lớp vững mạnh. Sau đây, xin mời lớp trưởng các lớp tiến lên phía trước để cùng nhau ký cam kết giao ước thi đua cho Học kỳ II. Chúc toàn trường một tuần học mới hứng khởi!" },
+            21: { theme: "Mừng Đảng 97 năm – Mừng Xuân Đinh Mùi", classId: "11A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nMùa xuân Đinh Mùi đang gõ cửa từng nhà. Mùa xuân năm nay càng thêm ý nghĩa khi toàn Đảng, toàn dân ta kỷ niệm 97 năm ngày thành lập Đảng Cộng sản Việt Nam (03/02/1930). Trong không khí rộn ràng ấy, lớp 11A xin mang đến chủ đề sinh hoạt: 'Mừng Đảng - Mừng Xuân - Tết Nhân ái'.\n\nTết không chỉ là niềm vui sum họp, mà còn là dịp để sẻ chia. Hưởng ứng lời kêu gọi của Đoàn trường, hôm nay chúng ta sẽ chính thức phát động phong trào 'Heo đất trao yêu thương' nhằm hỗ trợ các bạn học sinh có hoàn cảnh khó khăn đón một cái Tết ấm no hơn.\n\nTrước khi nghỉ Tết, chúng em cũng xin nhắc nhở các bạn học sinh tuyệt đối tuân thủ quy định an toàn giao thông, không sử dụng pháo nổ và nói không với các trò chơi cờ bạc. Xin kính chúc thầy cô và các bạn một năm mới An khang - Thịnh vượng - Vạn sự như ý!" },
+            24: { theme: "Vui xuân đầu năm – Văn hóa ứng xử", classId: "6A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nChào mừng quý thầy cô và các bạn đã quay trở lại trường sau kỳ nghỉ Tết Nguyên đán Đinh Mùi. Lời đầu tiên của năm mới, tập thể 6A xin gửi tới thầy cô và các bạn lời chúc bình an, may mắn và hạnh phúc!\n\nDư âm của ngày Tết hẳn vẫn còn đọng lại trong mỗi chúng ta. Hôm nay, lớp 6A muốn mời một vài bạn lên chia sẻ về cái Tết ở buôn làng mình. Các bạn đã được ăn món gì ngon, tham gia lễ hội gì vui? Ai xung phong chia sẻ sẽ có lì xì đầu năm từ lớp 6A nhé!\n\n(Mời học sinh chia sẻ)\n\nVui xuân mới không quên nhiệm vụ, chúng ta hãy nhanh chóng đưa việc học tập và nền nếp nội trú trở lại quỹ đạo. Chúc toàn trường một tuần khởi đầu năm mới đầy hứng khởi!" },
+            25: { theme: "Tri ân người thầy thuốc – Chăm sóc sức khỏe", classId: "10A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nÔng bà ta có câu: 'Lương y như từ mẫu' - Thầy thuốc như mẹ hiền. Nhân kỷ niệm Ngày Thầy thuốc Việt Nam 27/02 sắp tới, lớp 10A xin dành trọn buổi sinh hoạt dưới cờ hôm nay để tri ân những người làm công tác y tế, đồng thời chia sẻ về chủ đề 'Chăm sóc sức khỏe thể chất và tinh thần'.\n\nĐặc biệt với học sinh nội trú xa nhà, việc tự chăm sóc bản thân khi thời tiết giao mùa là vô cùng quan trọng. Hôm nay, lớp 10A xin gửi tới các bạn một bài vè vui về các bí kíp giữ gìn sức khỏe, phòng chống dịch bệnh mùa xuân.\n\n(Đọc vè / Biểu diễn văn nghệ)\n\nBên cạnh sức khỏe thể chất, sức khỏe tinh thần cũng cần được quan tâm. Hãy luôn mở lòng chia sẻ với thầy cô, bạn bè khi gặp áp lực. Kính chúc thầy cô và các bạn một tuần mới luôn khỏe mạnh, vui vẻ!" },
+            26: { theme: "Khai mạc Tháng Thanh niên 2027", classId: "12A", mcScript: "Kính thưa quý vị đại biểu, quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nTháng 3 - Tháng của tuổi trẻ, tháng của những trái tim đầy nhiệt huyết đã về. Hôm nay, tập thể lớp 12A vô cùng tự hào được điều hành buổi Lễ Khai mạc Tháng Thanh niên 2027 với chủ đề: 'Tuổi trẻ xung kích, sáng tạo'.\n\nTháng Thanh niên năm nay, Đoàn trường chúng ta sẽ triển khai hàng loạt chuỗi hoạt động sôi nổi: từ rèn luyện học tập, thể dục thể thao đến các công trình thanh niên tình nguyện vì cộng đồng. \n\nNgay sau đây, xin trân trọng kính mời đ/c Bí thư Đoàn trường lên phát động thi đua Tháng Thanh niên và chính thức đánh hồi trống khởi động các chuỗi hoạt động của tuổi trẻ trường PTDTNT Đắk Song!\n\n(Đại diện Đoàn trường phát động)\n\nXin cảm ơn đ/c Bí thư. Xin chúc toàn thể đoàn viên, thanh niên nhà trường có một Tháng Thanh niên rực rỡ và thành công!" },
+            27: { theme: "Ngày Quốc tế Phụ nữ 8/3", classId: "8A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nTháng 3 không chỉ là Tháng Thanh niên, mà còn có một ngày vô cùng đặc biệt dành riêng cho một nửa thế giới. Chào mừng ngày Quốc tế Phụ nữ 8/3, chi đoàn 8A xin gửi tới các bà, các mẹ, các cô giáo và các bạn nữ sinh lời chúc xinh đẹp, duyên dáng và ngập tràn hạnh phúc.\n\nChủ đề sinh hoạt hôm nay của chúng ta là 'Bình đẳng giới và kỹ năng tự bảo vệ'. Trong xã hội hiện đại, nữ giới ngày càng khẳng định được vị thế của mình, nhưng các bạn nữ vẫn cần trang bị những kỹ năng phòng chống xâm hại, bảo vệ an toàn cho bản thân.\n\nSau đây, lớp 8A xin gửi tới một tình huống giả định về cách xử lý khi gặp kẻ xấu trêu ghẹo trên đường vắng. Xin mời các bạn cùng theo dõi và đúc rút kinh nghiệm.\n\n(Trình diễn tình huống)\n\nMột lần nữa, xin gửi những đóa hoa tươi thắm nhất đến các cô giáo và các bạn nữ. Chúc toàn trường một tuần học tốt!" },
+            28: { theme: "Khoa học – sáng tạo – chuyển đổi số", classId: "11A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nChúng ta đang sống trong kỷ nguyên công nghệ 4.0, nơi mà chuyển đổi số và trí tuệ nhân tạo (AI) phát triển như vũ bão. Hòa vào dòng chảy đó, lớp 11A xin mang đến chủ đề sinh hoạt tuần này: 'Khoa học - Sáng tạo - Ý tưởng của em'.\n\nHôm nay, chúng em xin phép biến sân trường thành một buổi triển lãm mini. Xin mời quý thầy cô và các bạn cùng chiêm ngưỡng một số sản phẩm STEM nổi bật do chính bàn tay sáng tạo của học sinh trường chúng ta làm ra.\n\n(Đại diện học sinh thuyết minh về mô hình STEM)\n\nThật tự hào về sự sáng tạo của các bạn đúng không ạ? Cùng với việc ứng dụng công nghệ, chúng ta cũng cần sử dụng mạng xã hội và AI một cách có trách nhiệm, tránh tiếp tay cho tin giả. Chúc thầy cô và các bạn một tuần mới đầy ý tưởng sáng tạo!" },
+            29: { theme: "96 năm Ngày thành lập Đoàn TNCS Hồ Chí Minh", classId: "10A", mcScript: "Kính thưa quý vị đại biểu, quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nNgày 26/3/1931 đã đi vào lịch sử dân tộc như một mốc son chói lọi. Hôm nay, trong không khí tưng bừng kỷ niệm 96 năm Ngày thành lập Đoàn TNCS Hồ Chí Minh, lớp 10A rất vinh dự được đứng đây điều hành chương trình sinh hoạt dưới cờ truyền thống.\n\n96 năm qua, dưới ngọn cờ của Đảng, tổ chức Đoàn đã dẫn dắt bao thế hệ thanh niên Việt Nam viết nên những bản hùng ca bất diệt. Sáng hôm nay, Đoàn trường chúng ta long trọng tổ chức Lễ Kết nạp Đoàn viên mới cho các thanh niên ưu tú đã phấn đấu rèn luyện tốt trong thời gian qua.\n\nXin trân trọng kính mời các bạn thanh niên ưu tú có tên sau đây bước lên sân khấu để nhận Thẻ Đoàn và Huy hiệu Đoàn.\n\n(Tổ chức lễ kết nạp / Hát bài Thanh niên làm theo lời Bác)" },
+            30: { theme: "Ngày hội sắc màu văn hóa", classId: "7A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nTrường PTDTNT THCS và THPT Đắk Song của chúng ta là một mái nhà chung quy tụ học sinh từ nhiều dân tộc anh em. Mỗi dân tộc lại mang một nét đẹp văn hóa độc đáo riêng. Đó chính là nguồn cảm hứng để lớp 7A mang đến chủ đề 'Ngày hội sắc màu văn hóa - Giữ gìn bản sắc dân tộc'.\n\nNgay bây giờ, không khí tại sân trường sẽ trở nên rộn ràng hơn bao giờ hết với màn trình diễn cồng chiêng / trang phục truyền thống của các dân tộc anh em đang theo học tại trường. \n\nXin quý thầy cô và các bạn cho một tràng pháo tay thật lớn để chào đón các 'người mẫu' không chuyên nhưng vô cùng duyên dáng của chúng ta!\n\n(Trình diễn trang phục / Đánh cồng chiêng)\n\nBuổi trình diễn vừa rồi cũng khép lại Tháng Thanh niên đầy tự hào. Xin kính mời đ/c Bí thư Đoàn trường lên tổng kết và trao thưởng các hoạt động trong tháng 3 vừa qua." },
+            31: { theme: "Thanh niên với chuyển đổi số", classId: "8A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\n'Thanh niên tiên phong chuyển đổi số' không chỉ là khẩu hiệu mà phải trở thành hành động thực tiễn. Hôm nay, chi đoàn 8A xin gửi tới chủ đề sinh hoạt: Hướng dẫn sử dụng ứng dụng Thanh niên Việt Nam và an toàn thanh toán điện tử.\n\nHiện nay, việc sử dụng App Thanh niên Việt Nam để làm bài kiểm tra nghị quyết hay cập nhật thông tin Đoàn là bắt buộc đối với mỗi đoàn viên. Lớp 8A đã chuẩn bị sẵn một infographic / video hướng dẫn siêu ngắn gọn, giúp các bạn thao tác mượt mà không bị lỗi mạng.\n\nĐồng thời, với tình trạng lừa đảo qua mạng ngày càng tinh vi (như giả danh công an, hack tài khoản ngân hàng), chúng em cũng xin đưa ra 3 nguyên tắc vàng để tự bảo vệ mình trên không gian mạng.\n\n(Trình bày 3 nguyên tắc / Minigame hỏi đáp)\n\nChúc quý thầy cô và các bạn có một tuần mới làm việc an toàn, hiệu quả trong không gian số!" },
+            32: { theme: "Uống nước nhớ nguồn – Giỗ Tổ Hùng Vương", classId: "7A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\n'Dù ai đi ngược về xuôi / Nhớ ngày Giỗ Tổ mùng Mười tháng Ba'. Hướng về cội nguồn dân tộc, lớp 7A xin được thực hiện buổi sinh hoạt dưới cờ hôm nay với chủ đề: Uống nước nhớ nguồn - Tự hào dòng máu Lạc Hồng.\n\nĐể nhắc nhớ về công lao dựng nước của các Vua Hùng, hôm nay, lớp 7A xin gửi tới một màn kể chuyện truyền thuyết Sơn Tinh - Thủy Tinh / Sự tích bánh chưng bánh giầy với sự phụ họa vô cùng sinh động của các diễn viên lớp nhà.\n\n(Kể chuyện có phụ họa)\n\nLịch sử dân tộc luôn là điểm tựa vững chắc để thế hệ trẻ chúng ta tiến bước vào tương lai. Xin kính chúc thầy cô và các bạn một tuần mới tràn đầy sức khỏe và tự hào!" },
+            33: { theme: "Văn hóa đọc và Ngày Trái đất", classId: "6A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nCó một câu nói rất hay: 'Một cuốn sách hay mở ra một thế giới mới'. Hưởng ứng Ngày Sách và Văn hóa đọc Việt Nam (21/4) cùng Ngày Trái đất (22/4), lớp 6A xin mang đến chủ đề sinh hoạt kết hợp: 'Mở trang sách - Xanh trái đất'.\n\nHôm nay, đại diện lớp 6A xin giới thiệu đến các bạn cuốn sách mang tên 'Cho tôi xin một vé đi tuổi thơ' / 'Những tấm lòng cao cả'. Hy vọng cuốn sách này sẽ truyền cảm hứng đọc đến tất cả các bạn.\n\nĐồng thời, để bảo vệ 'ngôi nhà chung' Trái đất, chúng em xin phát động chiến dịch 'Mỗi tuần một hành động xanh' tại khu nội trú: tắt đèn khi ra khỏi phòng, phân loại rác thải, và hạn chế dùng túi nilon.\n\n(Thuyết trình sách / Phát động phong trào)\n\nHãy cùng nhau hành động vì một môi trường sống xanh - sạch - đẹp. Chúc toàn trường một tuần mới nhiều niềm vui!" },
+            34: { theme: "52 năm Giải phóng miền Nam, thống nhất đất nước", classId: "10A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nNhững ngày cuối tháng 4 lịch sử, cả nước lại bồi hồi nhớ về khoảnh khắc chiếc xe tăng mang số hiệu 390 húc đổ cổng chính Dinh Độc Lập vào trưa ngày 30/4/1975. Kỷ niệm 52 năm Ngày Giải phóng miền Nam, thống nhất đất nước và Quốc tế Lao động 1/5 là chủ đề sinh hoạt sáng nay do lớp 10A phụ trách.\n\nĐể sống lại những giờ phút hào hùng đó, chúng em xin kính mời quý thầy cô và các bạn cùng thưởng thức ca khúc 'Như có Bác Hồ trong ngày vui đại thắng' / 'Đất nước trọn niềm vui', với màn đồng diễn của tập thể lớp 10A.\n\n(Biểu diễn văn nghệ)\n\nChiến thắng 30/4/1975 là bản anh hùng ca bất diệt của dân tộc. Thế hệ trẻ chúng ta hôm nay phải trân trọng giá trị của độc lập, tự do và giá trị của lao động chân chính. Kính chúc thầy cô và các bạn một tuần học tập hiệu quả, đón kỳ nghỉ lễ an toàn, vui tươi!" },
+            35: { theme: "73 năm Chiến thắng Điện Biên Phủ", classId: "6A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\n'Chín năm làm một Điện Biên / Nên vành hoa đỏ, nên thiên sử vàng'. Chiến thắng Điện Biên Phủ 'lừng lẫy năm châu, chấn động địa cầu' ngày 07/5/1954 là minh chứng thép cho ý chí quật cường của dân tộc Việt Nam. Đó cũng là chủ đề mà lớp 6A vinh dự được chia sẻ hôm nay.\n\nTrong buổi sinh hoạt hôm nay, chúng ta sẽ cùng thi tài hiểu biết qua trò chơi 'Hái hoa dân chủ - Tìm hiểu về chiến dịch Điện Biên Phủ'. Có rất nhiều phần quà đang chờ đón những bạn có câu trả lời nhanh và chính xác nhất. Xin mời các bạn sẵn sàng!\n\n(Tổ chức Hái hoa dân chủ)\n\nNhững câu hỏi vừa rồi đã phần nào tái hiện lại sự khốc liệt và vĩ đại của chiến dịch. Kính chúc quý thầy cô và các bạn một tuần học mới mang khí thế hào hùng của Điện Biên năm xưa!" },
+            36: { theme: "86 năm Ngày thành lập Đội TNTP Hồ Chí Minh", classId: "8A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nNhân kỷ niệm 86 năm Ngày thành lập Đội TNTP Hồ Chí Minh (15/5), buổi sinh hoạt dưới cờ hôm nay của lớp 8A có chủ đề mang tên: 'Anh chị Đoàn với em Đội'.\n\nTại trường nội trú chúng ta, sự gắn kết giữa các khối lớp THPT và THCS là vô cùng khăng khít. Đoàn viên luôn là tấm gương, là người hướng dẫn, kèm cặp các em Đội viên trong học tập cũng như sinh hoạt hàng ngày. \n\nHôm nay, chúng em xin mời đại diện Chi đoàn 12A và Chi đội 6A cùng bước lên sân khấu tham gia một phần giao lưu chia sẻ kinh nghiệm học tập vô cùng ấm áp.\n\n(Tổ chức giao lưu Đoàn - Đội)\n\nSự sẻ chia này chắc chắn sẽ giúp các em lớp dưới tự tự tin hơn trên chặng đường sắp tới. Tiếp theo chương trình, xin kính mời Ban thi đua lên tổng kết điểm số tuần qua." },
+            37: { theme: "137 năm Ngày sinh Chủ tịch Hồ Chí Minh", classId: "9A", mcScript: "Kính thưa quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nTháng 5 về, những cánh hoa sen lại tỏa hương thơm ngát đón chào sinh nhật Bác. Kỷ niệm 137 năm Ngày sinh Chủ tịch Hồ Chí Minh (19/5), lớp 9A xin thực hiện chương trình sinh hoạt với chuyên đề: 'Học tập và làm theo lời Bác'.\n\nSinh thời, Bác Hồ luôn dành tình cảm yêu thương muôn vàn cho thiếu niên, nhi đồng. Để tưởng nhớ Người, lớp 9A xin gửi tới thầy cô và các bạn một câu chuyện cảm động về Bác mang tên 'Bác Hồ đến thăm người nghèo đêm giao thừa'. Xin mời toàn trường cùng lắng nghe.\n\n(Học sinh kể chuyện về Bác)\n\nQua câu chuyện trên, chúng ta học được từ Bác bài học về tình yêu thương con người bao la. Sắp tới kỳ thi cuối năm, hy vọng mỗi học sinh trường ta sẽ phấn đấu học tập thật tốt để dâng lên Bác những đóa hoa điểm 10 tươi thắm nhất." },
+            38: { theme: "Tổng kết năm học – Chia tay khối 12", classId: "11A", mcScript: "Kính thưa quý vị đại biểu, quý thầy cô giáo cùng toàn thể các bạn học sinh thân mến.\n\nSáng hôm nay là buổi chào cờ đặc biệt nhất trong năm học. Không chỉ là buổi sinh hoạt khép lại năm học 2026 - 2027, mà còn là khoảnh khắc chúng ta chia tay các anh chị khối 12. Thay mặt các bạn khối dưới, lớp 11A xin phụ trách chủ đề 'Tuổi trẻ nhà trường tri ân'.\n\nNăm học vừa qua, trường chúng ta đã gặt hái được vô vàn thành tích xuất sắc. Ngay bây giờ, xin trân trọng kính mời thầy Hiệu trưởng lên tổng kết thi đua và trao Cờ luân lưu cho tập thể lớp xuất sắc nhất năm học.\n\n(Thầy Hiệu trưởng phát biểu, trao cờ)\n\nTiếp nối chương trình, là những giây phút bồi hồi dành cho khối 12. Mười hai năm đèn sách, chuyến đò mang tên 'Tuổi thanh xuân' sắp cập bến. Xin mời đại diện học sinh khối 12 lên có đôi lời tri ân gửi tới thầy cô và mái trường trước lúc chia xa.\n\n(Học sinh khối 12 phát biểu tri ân)\n\nXin chúc các anh chị khối 12 sẽ 'vượt vũ môn' thành công rực rỡ. Đối với các khối lớp còn lại, chúc các bạn một mùa hè an toàn, vui tươi và tích cực tham gia các chiến dịch tình nguyện 'Hoa phượng đỏ'. Xin trân trọng cảm ơn!" }
+        };
+
+        function showCloudError(msg) {
+            const cStatus = document.getElementById('cloud-status');
+            if(cStatus) {
+                let vnMsg = msg;
+                if(msg.includes("auth/operation-not-allowed")) vnMsg = "Chưa bật Đăng nhập Ẩn danh (Anonymous).";
+                else if(msg.includes("permission-denied")) vnMsg = "Chưa tạo Firestore Database hoặc sai Luật.";
+                cStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Lỗi: ' + vnMsg;
+                cStatus.classList.remove('text-amber-600', 'cloud-syncing'); cStatus.classList.add('text-red-600', 'font-bold');
+            }
+        }
+
+        window.updateClassSelectsUI = function() {
+            const opts = '<option value="">-- Chọn lớp --</option>' + CLASSES.map(c => `<option value="${c}">Lớp ${c}</option>`).join('');
+            const vClass = document.getElementById('violation-class'); if(vClass) vClass.innerHTML = opts;
+            const bClass = document.getElementById('bonus-class'); if(bClass) bClass.innerHTML = opts;
+            const uClass = document.getElementById('user-managedclass'); if(uClass) uClass.innerHTML = opts;
+            
+            CLASSES.forEach(c => { if(DB.learningScores[c] === undefined) DB.learningScores[c] = null; });
+            
+            if(!document.getElementById('welcome-banner').classList.contains('hidden')) return; 
+            if(document.getElementById('view-learning') && document.getElementById('view-learning').classList.contains('block')) window.renderLearningScores();
+            if(document.getElementById('view-dashboard') && document.getElementById('view-dashboard').classList.contains('block')) window.renderDashboard();
+        };
+
+        window.saveClassList = async function() {
+            if(!auth?.currentUser) return window.showToast("Mất kết nối Đám mây!", "error");
+            const rawStr = document.getElementById('cfg-classes').value;
+            const newClasses = rawStr.split(',').map(s => s.trim().toUpperCase()).filter(s => s !== "");
+            if(newClasses.length === 0) return window.showToast("Danh sách lớp không được để trống!", "error");
+            
+            DB.appConfig.classes = newClasses;
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'appConfig'), DB.appConfig);
+                window.showToast("Đã cập nhật danh sách lớp lên Đám mây!");
+            } catch(e) { window.showToast("Lỗi lưu cấu hình lớp!", "error"); }
+        };
+
+        function getWeekIdFromDate(dateStr) {
+            if(!DB.appConfig.weekSchedules || DB.appConfig.weekSchedules.length === 0) return null;
+            const found = DB.appConfig.weekSchedules.find(w => dateStr >= w.start && dateStr <= w.end);
+            return found ? found.weekId : null;
+        }
+
+        const getWId = (item) => {
+            if (item.weekId) return parseInt(item.weekId);
+            if (item.date) {
+                let wId = getWeekIdFromDate(item.date);
+                if (wId) return wId;
+            }
+            return globalActiveWeekId;
+        };
+
+        function initCloudAndSync() {
+            if (!auth) { showCloudError("Sai cấu hình Firebase"); return; }
+            signInAnonymously(auth).then(() => {
+                const basePath = ['artifacts', appId, 'public', 'data'];
+                
+                try {
+                    onSnapshot(doc(db, ...basePath, 'config', 'appConfig'), (docSnap) => {
+                        if (docSnap.exists) {
+                            DB.appConfig = docSnap.data();
+                            if(!DB.appConfig.weekSchedules) DB.appConfig.weekSchedules = [];
+                            if(!DB.appConfig.plans) DB.appConfig.plans = {};
+                            
+                            if(DB.appConfig.classes && Array.isArray(DB.appConfig.classes) && DB.appConfig.classes.length > 0) {
+                                CLASSES = DB.appConfig.classes;
+                            } else {
+                                CLASSES = ["6A", "7A", "8A", "9A", "10A", "11A", "12A"];
+                                DB.appConfig.classes = CLASSES;
+                            }
+                        } else {
+                            CLASSES = ["6A", "7A", "8A", "9A", "10A", "11A", "12A"];
+                            DB.appConfig.classes = CLASSES;
+                            setDoc(doc(db, ...basePath, 'config', 'appConfig'), DB.appConfig);
+                        }
+
+                        if(document.getElementById('cfg-hk1')) {
+                            document.getElementById('cfg-hk1').value = DB.appConfig.hk1Start || "";
+                            document.getElementById('cfg-hk2').value = DB.appConfig.hk2Start || "";
+                        }
+                        if(document.getElementById('cfg-classes')) {
+                            document.getElementById('cfg-classes').value = CLASSES.join(', ');
+                        }
+                        
+                        window.updateClassSelectsUI();
+                        window.calculateRealtimeWeek();
+                        window.updateHeaderInfo();
+                        window.populateHistorySelects();
+                        window.populateLearningWeekSelect();
+                        window.renderAdminPlan(); 
+                        window.renderSHDCSchedule();
+                    });
+                } catch(e) { console.error(e); }
+
+                try {
+                    onSnapshot(doc(db, ...basePath, 'config', 'dicts'), (docSnap) => {
+                        if (docSnap.exists) { 
+                            const data = docSnap.data(); 
+                            violationDict = data.violations || []; 
+                            bonusDict = data.bonuses || []; 
+                        } else { 
+                            violationDict = DEFAULT_VIOLATIONS;
+                            bonusDict = DEFAULT_BONUSES;
+                            setDoc(doc(db, ...basePath, 'config', 'dicts'), { violations: violationDict, bonuses: bonusDict }); 
+                        }
+                        updateDictSelects(); renderDictTable();
+                    });
+                } catch(e) { console.error(e); }
+
+                try {
+                    onSnapshot(collection(db, ...basePath, 'users'), (snap) => {
+                        if (snap.empty) { 
+                            const defaultUsers = [
+                                { id: 'u1', username: 'codo', password: '123', role: 'codo', displayName: 'Cờ Đỏ', roleName: 'Đội Cờ Đỏ' },
+                                { id: 'u3', username: 'Admin@123', password: '123456', role: 'admin', displayName: 'Ban Giám Hiệu', roleName: 'Quản trị viên' }
+                            ];
+                            defaultUsers.forEach(async u => await setDoc(doc(db, ...basePath, 'users', u.id), u)); 
+                        } else { 
+                            DB.users = snap.docs.map(d => {
+                                const data = d.data();
+                                return { 
+                                    ...data, 
+                                    id: data.id || d.id, 
+                                    firestoreId: d.id,
+                                    displayName: data.displayName || data.name || data.username || 'Người dùng'
+                                };
+                            }); 
+                        }
+                        window.renderSHDCSchedule();
+                        if (currentUserRole === 'admin' && document.getElementById('view-profiles') && document.getElementById('view-profiles').classList.contains('block')) window.renderUsersTable();
+                    });
+                } catch(e) { console.error(e); }
+
+                try {
+                    onSnapshot(collection(db, ...basePath, 'scores'), (snap) => {
+                        DB.learningScores = {};
+                        snap.docs.forEach(d => { DB.learningScores[d.id.replace('week_', '')] = d.data(); });
+                        if(!document.getElementById('welcome-banner').classList.contains('hidden')) return;
+                        if(document.getElementById('view-learning') && document.getElementById('view-learning').classList.contains('block')) window.renderLearningScores();
+                        if(document.getElementById('view-dashboard') && document.getElementById('view-dashboard').classList.contains('block')) window.renderDashboard();
+                        if(document.getElementById('view-history') && document.getElementById('view-history').classList.contains('block')) window.viewHistoryData();
+                    });
+                } catch(e) { console.error(e); }
+
+                try {
+                    onSnapshot(collection(db, ...basePath, 'violations'), (snap) => {
+                        DB.violationsLog = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+                        if(!document.getElementById('welcome-banner').classList.contains('hidden')) return;
+                        if(document.getElementById('view-dashboard') && document.getElementById('view-dashboard').classList.contains('block')) window.renderDashboard();
+                        if(document.getElementById('view-history') && document.getElementById('view-history').classList.contains('block')) window.viewHistoryData();
+                        if(currentModalClassId) {
+                            const isHistoryMode = document.getElementById('view-history') && document.getElementById('view-history').classList.contains('block');
+                            const wId = isHistoryMode ? parseInt(document.getElementById('history-week-select').value) : globalActiveWeekId;
+                            window.openClassDetails(currentModalClassId, wId);
+                        }
+                    });
+                } catch(e) { console.error(e); }
+
+                try {
+                    onSnapshot(collection(db, ...basePath, 'bonuses'), (snap) => {
+                        DB.bonusesLog = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+                        if(!document.getElementById('welcome-banner').classList.contains('hidden')) return;
+                        if(document.getElementById('view-dashboard') && document.getElementById('view-dashboard').classList.contains('block')) window.renderDashboard();
+                        if(document.getElementById('view-history') && document.getElementById('view-history').classList.contains('block')) window.viewHistoryData();
+                        if(currentModalClassId) {
+                            const isHistoryMode = document.getElementById('view-history') && document.getElementById('view-history').classList.contains('block');
+                            const wId = isHistoryMode ? parseInt(document.getElementById('history-week-select').value) : globalActiveWeekId;
+                            window.openClassDetails(currentModalClassId, wId);
+                        }
+                    });
+                } catch(e) { console.error(e); }
+
+                try {
+                    onSnapshot(collection(db, ...basePath, 'history'), (snap) => {
+                        DB.history = snap.docs.map(d => d.data());
+                        if(!document.getElementById('welcome-banner').classList.contains('hidden')) return;
+                        if(document.getElementById('history-view-mode') && document.getElementById('history-view-mode').value === 'week') {
+                            if(document.getElementById('view-history') && document.getElementById('view-history').classList.contains('block')) window.viewHistoryData();
+                        }
+                    });
+                } catch(e) { console.error(e); }
+
+                const cStatus = document.getElementById('cloud-status'); const btnLogin = document.getElementById('btn-login');
+                if(cStatus) { cStatus.innerHTML = '<i class="fas fa-check-circle"></i> Hệ thống đã sẵn sàng!'; cStatus.classList.remove('text-amber-600', 'cloud-syncing'); cStatus.classList.add('text-green-600'); }
+                if(btnLogin) { btnLogin.disabled = false; btnLogin.classList.remove('bg-gray-400', 'cursor-not-allowed'); btnLogin.classList.add('bg-sky-600', 'hover:bg-sky-700', 'hover:-translate-y-0.5'); }
+            }).catch(err => {
+                showCloudError(err.message);
+            });
+        }
+        
+        // Chờ DOM load xong mới gọi Firebase Init để tránh lỗi
+        window.onload = function() {
+            setTimeout(() => { initCloudAndSync(); }, 500);
+        };
+
+        // ==========================================
+        // LOGIC LỊCH TRÌNH TỰ ĐỘNG
+        // ==========================================
+        window.autoGenerateWeeks = async function() {
+            if(!auth?.currentUser) return;
+            const d1Str = document.getElementById('cfg-hk1').value; const d2Str = document.getElementById('cfg-hk2').value;
+            if(!d1Str || !d2Str) return window.showToast("Vui lòng chọn cả 2 ngày bắt đầu HK1 và HK2!", "warning");
+            const d1 = new Date(d1Str); const d2 = new Date(d2Str); let schedules = [];
+            for(let i=1; i<=18; i++) {
+                let start = new Date(d1.getTime() + (i-1)*7*24*60*60*1000); let end = new Date(start.getTime() + 6*24*60*60*1000);
+                schedules.push({ weekId: i, start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0], month: "Tháng " + (start.getMonth()+1) });
+            }
+            for(let i=19; i<=38; i++) {
+                let start = new Date(d2.getTime() + (i-19)*7*24*60*60*1000); let end = new Date(start.getTime() + 6*24*60*60*1000);
+                schedules.push({ weekId: i, start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0], month: "Tháng " + (start.getMonth()+1) });
+            }
+            DB.appConfig.hk1Start = d1Str; DB.appConfig.hk2Start = d2Str; DB.appConfig.weekSchedules = schedules;
+            let y1 = d1.getFullYear(); DB.appConfig.academicYear = `${y1} - ${y1+1}`;
+            try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'appConfig'), DB.appConfig); window.showToast("Đã tính Lịch Tuần thành công!"); } catch(e) { window.showToast("Lỗi lưu lịch!", "error"); }
+        };
+
+        window.calculateRealtimeWeek = function() {
+            if(!DB.appConfig.weekSchedules || DB.appConfig.weekSchedules.length === 0) { globalActiveWeekId = DB.appConfig.currentWeekId || 1; return; }
+            const today = new Date().toISOString().split('T')[0];
+            const wId = getWeekIdFromDate(today);
+            if(wId) { globalActiveWeekId = wId; DB.appConfig.currentWeekId = wId; } 
+            else {
+                if(today < DB.appConfig.weekSchedules[0].start) globalActiveWeekId = 1;
+                else if(today > DB.appConfig.weekSchedules[37].end) globalActiveWeekId = 38;
+                else globalActiveWeekId = 18; 
+                DB.appConfig.currentWeekId = globalActiveWeekId;
+            }
+        };
+
+        window.updateHeaderInfo = function() {
+            const displays = document.querySelectorAll('#current-week-display');
+            if(!DB.appConfig.weekSchedules || DB.appConfig.weekSchedules.length === 0) {
+                displays.forEach(d => d.innerHTML = '<span class="text-red-500 font-bold">⚠️ Vui lòng cấu hình lịch 35 Tuần</span>');
+                return;
+            }
+            const wInfo = DB.appConfig.weekSchedules.find(x => x.weekId === globalActiveWeekId);
+            displays.forEach(d => d.innerHTML = `<i class="fas fa-calendar-check text-sky-500 mr-1"></i> Đang diễn ra: Tuần ${globalActiveWeekId} ${wInfo ? '('+wInfo.month+')' : ''}`);
+        };
+
+        // HIỂN THỊ CHỦ ĐỀ SINH HOẠT DƯỚI CỜ TUẦN TỚI
+        window.renderSHDCSchedule = function() {
+            try {
+                const container = document.getElementById('shdc-container');
+                const btnContainer = document.getElementById('shdc-script-btn-container');
+                if(!container) return;
+                
+                let nextWeekId = globalActiveWeekId + 1;
+                if (nextWeekId > 38) nextWeekId = 38;
+                
+                const scheduleInfo = SHDC_SCHEDULE[nextWeekId];
+                
+                if(!scheduleInfo) {
+                    container.innerHTML = `<div class="text-center p-4 text-gray-500 font-bold">Tuần ${nextWeekId} không có lịch sinh hoạt chuyên đề.</div>`;
+                    if(btnContainer) btnContainer.classList.add('hidden');
+                    return;
+                }
+
+                let dateDisplay = "Tuần tới";
+                if(DB.appConfig.weekSchedules && DB.appConfig.weekSchedules.length > 0) {
+                    const nextWeekInfo = DB.appConfig.weekSchedules.find(x => x.weekId === nextWeekId);
+                    if(nextWeekInfo && nextWeekInfo.start) {
+                        const dObj = new Date(nextWeekInfo.start);
+                        const dayNames = ["Chủ Nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+                        dateDisplay = `${dayNames[dObj.getDay()]}, ${dObj.toLocaleDateString('vi-VN')}`;
+                    }
+                }
+
+                let gvcnName = "Đang cập nhật...";
+                if (DB.users && DB.users.length > 0) {
+                    const gvcnUser = DB.users.find(u => u.role === 'gvcn' && u.managedClass === scheduleInfo.classId);
+                    if (gvcnUser) gvcnName = gvcnUser.displayName;
+                }
+
+                container.innerHTML = `
+                    <div class="mb-3">
+                        <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded border border-blue-200 uppercase">Tuần ${nextWeekId}</span>
+                        <span class="text-sm font-semibold text-gray-600 ml-2"><i class="far fa-calendar-alt text-blue-500"></i> ${dateDisplay}</span>
+                    </div>
+                    <h4 class="text-lg font-black text-gray-800 mb-4 leading-tight">${scheduleInfo.theme}</h4>
+                    <div class="flex items-center gap-4 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                        <div class="w-12 h-12 bg-white rounded-full border-2 border-blue-400 flex items-center justify-center font-black text-blue-700 shadow-sm flex-shrink-0">
+                            ${scheduleInfo.classId}
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Lớp phụ trách</p>
+                            <p class="text-sm font-black text-blue-900">Lớp ${scheduleInfo.classId} <span class="font-medium text-gray-600">- GVCN: ${gvcnName}</span></p>
+                        </div>
+                    </div>
+                `;
+                
+                // Hiển thị nút gọi Kịch bản MC
+                if(btnContainer && scheduleInfo.mcScript) {
+                    btnContainer.classList.remove('hidden');
+                } else if(btnContainer) {
+                    btnContainer.classList.add('hidden');
+                }
+
+            } catch(e) { console.error("Lỗi vẽ lịch SHDC:", e); }
+        };
+
+        window.openMCScriptModal = function() {
+            let nextWeekId = globalActiveWeekId + 1;
+            if (nextWeekId > 38) nextWeekId = 38;
+            const scheduleInfo = SHDC_SCHEDULE[nextWeekId];
+            if(!scheduleInfo || !scheduleInfo.mcScript) return;
+            
+            document.getElementById('mc-modal-theme').textContent = `Chủ đề: ${scheduleInfo.theme} (Phụ trách: Lớp ${scheduleInfo.classId})`;
+            document.getElementById('mc-script-content').textContent = scheduleInfo.mcScript;
+            document.getElementById('mc-script-modal').classList.remove('hidden');
+        };
+
+        window.copyMCScript = function() {
+            const content = document.getElementById('mc-script-content').textContent;
+            navigator.clipboard.writeText(content).then(() => {
+                window.showToast("Đã copy kịch bản vào khay nhớ tạm!");
+            }).catch(err => {
+                window.showToast("Không thể copy tự động, vui lòng bôi đen và copy tay.", "error");
+            });
+        };
+
+        // ==========================================
+        // UTILS
+        // ==========================================
+        window.showToast = function(message, type = 'success') {
+            const container = document.getElementById('toast-container'); if(!container) return;
+            const toast = document.createElement('div'); toast.className = `toast toast-${type}`;
+            let icon = type === 'error' ? 'exclamation-circle' : (type === 'warning' ? 'exclamation-triangle' : 'check-circle');
+            toast.innerHTML = `<i class="fas fa-${icon} text-xl"></i><span>${message}</span>`;
+            container.appendChild(toast); setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3000);
+        };
+
+        window.showDialog = function(title, message, type = 'alert', onConfirm = null) {
+            const dialog = document.getElementById('custom-dialog'); document.getElementById('dialog-title').textContent = title; document.getElementById('dialog-message').textContent = message;
+            const okBtn = document.getElementById('dialog-ok-btn'); const cancelBtn = document.getElementById('dialog-cancel-btn'); const icon = document.getElementById('dialog-icon');
+            const newOkBtn = okBtn.cloneNode(true); okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+            if (type === 'confirm') { cancelBtn.classList.remove('hidden'); newOkBtn.className = "flex-1 px-5 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition shadow-md"; icon.innerHTML = '<i class="fas fa-exclamation-triangle text-amber-500"></i>'; } 
+            else { cancelBtn.classList.add('hidden'); newOkBtn.className = "flex-1 px-5 py-3.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-bold transition shadow-md"; icon.innerHTML = '<i class="fas fa-info-circle text-sky-500"></i>'; }
+            dialog.classList.remove('hidden');
+            newOkBtn.onclick = function() { dialog.classList.add('hidden'); if (onConfirm) onConfirm(); }; cancelBtn.onclick = () => dialog.classList.add('hidden');
+        };
+
+        window.checkValidDate = function(inputElem) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const valStr = inputElem.value; const infoDiv = document.getElementById(inputElem.id + "-info");
+            if(!valStr) { infoDiv.innerHTML = ""; inputElem.dataset.weekId = ""; return; }
+            if(valStr > todayStr) { window.showToast("Không thể nhập trước thời gian!", "error"); inputElem.value = todayStr; window.checkValidDate(inputElem); return; }
+            const dateObj = new Date(valStr);
+            if(dateObj.getDay() === 0) { window.showToast("Không nhập Chủ Nhật!", "error"); inputElem.value = todayStr; window.checkValidDate(inputElem); return; }
+
+            const dayNames = ["Chủ Nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+            const wId = getWeekIdFromDate(valStr);
+            if(wId) { infoDiv.innerHTML = `<span class="text-sky-600 font-bold"><i class="fas fa-check-circle"></i> ${dayNames[dateObj.getDay()]}, ${dateObj.toLocaleDateString('vi-VN')} - Thuộc Tuần ${wId}</span>`; inputElem.dataset.weekId = wId; } 
+            else { infoDiv.innerHTML = `<span class="text-red-500 font-bold"><i class="fas fa-times-circle"></i> Ngày nằm ngoài lịch học</span>`; inputElem.dataset.weekId = ""; }
+        };
+
+        window.setTodayAsDefault = function() {
+            const today = new Date().toISOString().split('T')[0];
+            const vDate = document.getElementById('violation-date'); const bDate = document.getElementById('bonus-date');
+            if(vDate) { vDate.setAttribute('max', today); vDate.value = today; window.checkValidDate(vDate); }
+            if(bDate) { bDate.setAttribute('max', today); bDate.value = today; window.checkValidDate(bDate); }
+        };
+
+        const sortDict = (a, b) => { if (a.group !== b.group) return a.group.localeCompare(b.group, 'vi'); return a.name.localeCompare(b.name, 'vi'); };
+
+        // ==========================================
+        // AUTHENTICATION
+        // ==========================================
+        window.handleLogin = function(e) {
+            if(e) e.preventDefault();
+            const u = document.getElementById('username').value.trim(); const p = document.getElementById('password').value.trim();
+            const user = DB.users.find(x => x.username.toLowerCase() === u.toLowerCase() && x.password === p);
+            if(!user) return window.showToast("Tài khoản hoặc mật khẩu không đúng!", "error");
+
+            currentUserRole = user.role; currentUserClass = user.managedClass || null; currentUserName = user.displayName || user.username;
+            document.getElementById('user-display-name').textContent = currentUserName; 
+            let roleTitle = user.roleName || (user.role === 'admin' ? 'Quản trị viên' : (user.role === 'codo' ? 'Đội Cờ Đỏ' : 'GV Chủ nhiệm')); 
+            if(currentUserRole === 'gvcn' && currentUserClass) roleTitle += ` Lớp ${currentUserClass}`;
+            document.getElementById('user-role-name').textContent = roleTitle;
+
+            document.getElementById('login-screen').classList.add('hidden'); 
+            const app = document.getElementById('app-wrapper'); 
+            app.classList.remove('hidden'); 
+            setTimeout(() => app.classList.remove('opacity-0'), 50);
+
+            document.querySelectorAll('.icon-box[id^="nav-"]').forEach(btn => {
+                const viewId = btn.id.replace('nav-', '');
+                if (currentUserRole === 'gvcn' && ['violation', 'bonus', 'learning', 'admin', 'profiles'].includes(viewId)) btn.style.display = 'none';
+                else if (currentUserRole === 'codo' && ['learning', 'admin', 'profiles'].includes(viewId)) btn.style.display = 'none';
+                else btn.style.display = 'flex';
+            });
+            
+            document.getElementById('admin-plan-section').style.display = (currentUserRole === 'admin') ? 'block' : 'none';
+
+            window.updateClassSelectsUI();
+            window.updateDictSelects(); window.renderDictTable();
+            window.setTodayAsDefault();
+            
+            window.showWelcomeBanner();
+        };
+
+        window.handleLogout = function() {
+            currentUserRole = null; currentUserClass = null; document.getElementById('app-wrapper').classList.add('opacity-0');
+            setTimeout(() => { document.getElementById('app-wrapper').classList.add('hidden'); document.getElementById('login-screen').classList.remove('hidden'); document.getElementById('username').value = ""; document.getElementById('password').value = ""; }, 500);
+        };
+
+        // ==========================================
+        // DATA ENTRY
+        // ==========================================
+        window.updateDictSelects = function() {
+            violationDict.sort(sortDict); bonusDict.sort(sortDict);
+            const vGroupSelect = document.getElementById('violation-group'); if(vGroupSelect) { const uniqueGroups = [...new Set(violationDict.map(item => item.group))]; vGroupSelect.innerHTML = '<option value="">-- Chọn nhóm vi phạm --</option>'; uniqueGroups.forEach(g => vGroupSelect.innerHTML += `<option value="${g}">${g}</option>`); }
+            const bGroupSelect = document.getElementById('bonus-group'); if(bGroupSelect) { const uniqueGroups = [...new Set(bonusDict.map(item => item.group))]; bGroupSelect.innerHTML = '<option value="">-- Chọn nhóm thành tích --</option>'; uniqueGroups.forEach(g => bGroupSelect.innerHTML += `<option value="${g}">${g}</option>`); }
+            window.updateViolationGroupOptions(); window.updateBonusGroupOptions();
+        };
+
+        window.updateViolationGroupOptions = function() {
+            const selectedGroup = document.getElementById('violation-group').value; const vSelect = document.getElementById('violation-code'); if(!vSelect) return;
+            vSelect.innerHTML = '<option value="">-- Chọn nội dung vi phạm --</option>'; if (!selectedGroup) return;
+            violationDict.filter(v => v.group === selectedGroup).forEach(item => { vSelect.innerHTML += `<option value="${item.code}">[${item.code}] ${item.name} (-${item.score}đ/${item.unit})</option>`; }); window.updateViolationPreview();
+        };
+
+        window.updateBonusGroupOptions = function() {
+            const selectedGroup = document.getElementById('bonus-group').value; const bSelect = document.getElementById('bonus-code'); if(!bSelect) return;
+            bSelect.innerHTML = '<option value="">-- Chọn nội dung thành tích --</option>'; if (!selectedGroup) return;
+            bonusDict.filter(v => v.group === selectedGroup).forEach(item => { bSelect.innerHTML += `<option value="${item.code}">[${item.code}] ${item.name} (+${item.score}đ/${item.unit})</option>`; }); window.updateBonusPreview();
+        };
+
+        window.updateViolationPreview = function() { const code = document.getElementById('violation-code')?.value; const qty = parseInt(document.getElementById('violation-qty')?.value) || 1; const item = violationDict.find(v => v.code === code); const preview = document.getElementById('violation-total-preview'); if(preview) preview.textContent = item ? `-${item.score * qty}` : '-0'; };
+        window.updateBonusPreview = function() { const code = document.getElementById('bonus-code')?.value; const qty = parseInt(document.getElementById('bonus-qty')?.value) || 1; const item = bonusDict.find(v => v.code === code); const preview = document.getElementById('bonus-total-preview'); if(preview) preview.textContent = item ? `+${item.score * qty}` : '+0'; };
+
+        window.saveViolation = async function(e) {
+            e.preventDefault(); if(!auth?.currentUser) return window.showToast("Lỗi kết nối Đám mây!", "error");
+            const dateInput = document.getElementById('violation-date'); const targetWeekId = parseInt(dateInput.dataset.weekId) || globalActiveWeekId; 
+            const classId = document.getElementById('violation-class').value; const code = document.getElementById('violation-code').value; const qty = parseInt(document.getElementById('violation-qty').value); const date = dateInput.value; const note = document.getElementById('violation-note').value;
+            const item = violationDict.find(v => v.code === code); if(!item) return; const totalScore = item.score * qty;
+            try { 
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'violations'), { weekId: targetWeekId, classId, date, code, name: item.name, group: item.group, qty, score: item.score, total: totalScore, note, by: currentUserName }); 
+                window.showToast(`Đã ghi nhận trừ ${totalScore}đ vào Tuần ${targetWeekId}`); document.getElementById('violation-qty').value = 1; document.getElementById('violation-note').value = ""; window.updateViolationPreview(); 
+            } catch(err) { window.showToast("Lỗi mạng!", "error"); }
+        };
+
+        window.saveBonus = async function(e) {
+            e.preventDefault(); if(!auth?.currentUser) return window.showToast("Lỗi kết nối Đám mây!", "error");
+            const dateInput = document.getElementById('bonus-date'); const targetWeekId = parseInt(dateInput.dataset.weekId) || globalActiveWeekId; 
+            const classId = document.getElementById('bonus-class').value; const code = document.getElementById('bonus-code').value; const qty = parseInt(document.getElementById('bonus-qty').value); const date = dateInput.value; const note = document.getElementById('bonus-note').value;
+            const item = bonusDict.find(v => v.code === code); if(!item) return; const totalScore = item.score * qty;
+            try { 
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'bonuses'), { weekId: targetWeekId, classId, date, code, name: item.name, group: item.group, qty, score: item.score, total: totalScore, note, by: currentUserName }); 
+                window.showToast(`Đã ghi nhận cộng ${totalScore}đ vào Tuần ${targetWeekId}`); document.getElementById('bonus-qty').value = 1; document.getElementById('bonus-note').value = ""; window.updateBonusPreview(); 
+            } catch(err) { window.showToast("Lỗi mạng!", "error"); }
+        };
+
+        // ==========================================
+        // QUẢN TRỊ ADMIN - KẾ HOẠCH TUẦN
+        // ==========================================
+        window.renderAdminPlan = function() {
+            if(!document.getElementById('plan-nennep')) return;
+            let currentPlan = DB.appConfig.plans[globalActiveWeekId] || {};
+            document.getElementById('plan-nennep').value = currentPlan.nenNep || "";
+            document.getElementById('plan-hoctap').value = currentPlan.hocTap || "";
+            document.getElementById('plan-vesinh').value = currentPlan.veSinh || "";
+            document.getElementById('plan-phongtrao').value = currentPlan.phongTrao || "";
+            document.getElementById('plan-khac').value = currentPlan.khac || "";
+        };
+
+        window.saveWeeklyPlan = async function() {
+            if(!auth?.currentUser) return window.showToast("Mất kết nối Đám mây!", "error");
+            const planObj = {
+                nenNep: document.getElementById('plan-nennep').value.trim(),
+                hocTap: document.getElementById('plan-hoctap').value.trim(),
+                veSinh: document.getElementById('plan-vesinh').value.trim(),
+                phongTrao: document.getElementById('plan-phongtrao').value.trim(),
+                khac: document.getElementById('plan-khac').value.trim()
+            };
+            if(!DB.appConfig.plans) DB.appConfig.plans = {};
+            DB.appConfig.plans[globalActiveWeekId] = planObj;
+            try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'appConfig'), DB.appConfig); window.showToast("Đã lưu kế hoạch tuần lên Đám mây!"); } catch(e) { window.showToast("Lỗi lưu kế hoạch!", "error"); }
+        };
+
+        // ==========================================
+        // SỔ ĐẦU BÀI - ĐỌC TỪ EXCEL VNEDU
+        // ==========================================
+        window.populateLearningWeekSelect = function() {
+            const select = document.getElementById('learning-week-select'); if(!select) return; select.innerHTML = '';
+            for(let i=1; i<=38; i++) { select.innerHTML += `<option value="${i}" ${i === globalActiveWeekId ? 'selected' : ''}>Sổ Đầu Bài Tuần ${i}</option>`; }
+            if(!document.getElementById('welcome-banner').classList.contains('hidden')) return;
+            window.renderLearningScores();
+        };
+
+        window.renderLearningScores = function() {
+            const grid = document.getElementById('learning-score-grid'); 
+            if(!grid) return; 
+            grid.innerHTML = '';
+            const wSelect = document.getElementById('learning-week-select');
+            const wId = wSelect && wSelect.value ? parseInt(wSelect.value) : globalActiveWeekId;
+            const wScores = DB.learningScores[wId] || {};
+            
+            if(CLASSES.length === 0) {
+                grid.innerHTML = '<div class="col-span-full text-center text-red-500 font-bold p-6 border border-red-200 rounded-xl bg-red-50">Chưa có danh sách lớp. Vui lòng vào Cấu Hình để thêm Lớp.</div>';
+                return;
+            }
+
+            CLASSES.forEach(c => { 
+                const val = wScores[c] !== null && wScores[c] !== undefined ? wScores[c] : ''; 
+                grid.innerHTML += `<div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between hover:shadow-md transition"><span class="font-black text-purple-800 text-lg mb-3">LỚP ${c}</span><input type="number" step="0.01" id="sdb-${c}" value="${val}" placeholder="VD: 85.5" class="w-full p-3 border border-purple-200 rounded-lg text-center font-bold text-gray-700 transition-colors duration-300 focus:ring-2 focus:ring-purple-500 outline-none shadow-inner bg-purple-50/30"></div>`; 
+            });
+        };
+
+        window.saveLearningScores = async function() {
+            if(!auth?.currentUser) return window.showToast("Mất kết nối Đám mây!", "error");
+            const wId = parseInt(document.getElementById('learning-week-select').value);
+            let hasEmpty = false; let newScores = {}; 
+            CLASSES.forEach(c => { const elem = document.getElementById(`sdb-${c}`); if(elem) { const val = elem.value; if(val === "") hasEmpty = true; newScores[c] = val === "" ? null : parseFloat(val); } });
+            try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'scores', `week_${wId}`), newScores); window.showToast(`Đã lưu điểm Sổ đầu bài Tuần ${wId}`); if(hasEmpty) window.showToast("Cảnh báo: Có lớp chưa có điểm!", "warning"); } catch(e) { window.showToast("Lỗi lưu điểm!", "error"); }
+        };
+
+        window.handleExcelUpload = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const wSelect = document.getElementById('learning-week-select');
+            const targetWeekId = parseInt(wSelect.value);
+            if (!targetWeekId) return window.showToast("Vui lòng chọn Tuần trước khi nhập điểm!", "warning");
+
+            window.showToast("Đang đọc file Excel vnEdu...", "success");
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(firstSheet, {header: 1, defval: ""});
+
+                    let scoreIndex = -1;
+                    let classColIndex = -1;
+
+                    for (let i = 0; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (!row || row.length === 0) continue;
+
+                        let isHeaderRow = false;
+                        for (let j = 0; j < row.length; j++) {
+                            const cellVal = String(row[j]).trim().toLowerCase().replace(/\s+/g, ' ');
+                            if (cellVal === "lớp" || cellVal === "lop") {
+                                classColIndex = j;
+                                isHeaderRow = true;
+                            }
+                            if (cellVal.includes("tuần " + targetWeekId) || cellVal.includes("tuan " + targetWeekId)) {
+                                scoreIndex = j; 
+                            }
+                        }
+                        if (isHeaderRow) break;
+                    }
+
+                    if (classColIndex === -1) return window.showToast("Lỗi: Không tìm thấy cột 'Lớp' trong file!", "error");
+                    if (scoreIndex === -1) return window.showToast(`Lỗi: Không tìm thấy cột 'Tuần ${targetWeekId}' trong file!`, "error");
+
+                    let countSuccess = 0;
+                    for (let i = 0; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (!row || row.length <= classColIndex) continue;
+
+                        const classNameRaw = String(row[classColIndex]).trim().toUpperCase();
+                        if (CLASSES.includes(classNameRaw)) {
+                            let rawScore = row[scoreIndex]; 
+                            if (rawScore !== undefined && rawScore !== null && rawScore !== "") {
+                                const inputElem = document.getElementById(`sdb-${classNameRaw}`);
+                                if (inputElem) {
+                                    let parsedScore = parseFloat(String(rawScore).replace(',', '.'));
+                                    if(!isNaN(parsedScore)) {
+                                        inputElem.value = parsedScore;
+                                        inputElem.classList.add('bg-emerald-100', 'text-emerald-800', 'border-emerald-400');
+                                        setTimeout(() => inputElem.classList.remove('bg-emerald-100', 'text-emerald-800', 'border-emerald-400'), 3000);
+                                        countSuccess++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (countSuccess > 0) { window.showToast(`Tuyệt vời! Đã điền tự động điểm cho ${countSuccess} lớp. Vui lòng bấm LƯU ĐIỂM!`, "success"); } else { window.showToast(`Không tìm thấy dữ liệu điểm của Tuần ${targetWeekId} cho các lớp.`, "warning"); }
+                } catch (error) { window.showToast("Lỗi đọc file! Vui lòng đảm bảo đây là file xuất từ vnEdu.", "error"); }
+                event.target.value = "";
+            };
+            reader.readAsArrayBuffer(file);
+        };
+
+        // ==========================================
+        // TÍNH TOÁN TRỰC TIẾP (LIVE CALCULATION)
+        // ==========================================
+        const calculateResultsForWeek = (targetWId) => {
+            let results = []; 
+            CLASSES.forEach(c => {
+                let vList = DB.violationsLog.filter(x => x.classId === c && getWId(x) === targetWId); 
+                let bList = DB.bonusesLog.filter(x => x.classId === c && getWId(x) === targetWId);
+                let totalDeduction = vList.reduce((sum, item) => sum + item.total, 0); 
+                let totalBonus = bList.reduce((sum, item) => sum + item.total, 0);
+                let conductScore = 100 - totalDeduction + totalBonus; 
+                let wScores = DB.learningScores[targetWId];
+                let learningScore = (wScores && wScores[c] !== undefined && wScores[c] !== null) ? wScores[c] : null; 
+                let totalScore = learningScore !== null ? parseFloat((learningScore + conductScore).toFixed(2)) : null;
+                results.push({ classId: c, learningScore, totalDeduction, totalBonus, conductScore, totalScore });
+            });
+            let rankable = results.filter(r => r.totalScore !== null); rankable.sort((a, b) => b.totalScore - a.totalScore);
+            let currentRank = 1; for(let i = 0; i < rankable.length; i++) { if(i > 0 && rankable[i].totalScore === rankable[i-1].totalScore) rankable[i].rank = rankable[i-1].rank; else rankable[i].rank = currentRank; currentRank++; }
+            return results;
+        };
+
+        window.renderDashboard = function() {
+            try {
+                const results = calculateResultsForWeek(globalActiveWeekId); 
+                document.getElementById('dashboard-title').innerHTML = `<i class="fas fa-trophy text-amber-500 mr-2"></i> BẢNG XẾP HẠNG THI ĐUA (TUẦN ${globalActiveWeekId})`;
+                const tbody = document.getElementById('ranking-table-body'); if(!tbody) return; tbody.innerHTML = '';
+                
+                if(CLASSES.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-12 text-center text-red-500 font-bold bg-red-50">Chưa có danh sách lớp. Vui lòng vào Cấu Hình để thêm Lớp.</td></tr>';
+                    return;
+                }
+
+                results.sort((a, b) => { if(a.rank && !b.rank) return -1; if(!a.rank && b.rank) return 1; return (a.rank || 99) - (b.rank || 99); });
+                results.forEach(r => {
+                    let rankBadge = r.rank ? (r.rank <= 3 ? `<span class="bg-amber-100 text-amber-800 font-black px-3 py-1.5 rounded-lg text-xs shadow-sm border border-amber-200">Hạng ${r.rank}</span>` : `<span class="text-gray-600 font-bold">Hạng ${r.rank}</span>`) : `<span class="text-gray-400 text-xs font-semibold bg-gray-100 px-2 py-1 rounded">Chờ SĐB</span>`;
+                    let lsText = r.learningScore !== null ? r.learningScore.toFixed(2) : '--'; let totalText = r.totalScore !== null ? r.totalScore.toFixed(2) : '--'; let conductColor = r.conductScore < 90 ? 'text-red-600' : 'text-sky-700';
+                    
+                    let canViewDetail = (currentUserRole === 'admin' || currentUserRole === 'codo' || currentUserClass === r.classId);
+                    let eyeIcon = canViewDetail ? '<i class="fas fa-search text-white bg-sky-500 hover:bg-sky-600 p-2 rounded-lg shadow-sm transition"></i>' : '<i class="fas fa-lock text-gray-300" title="Chỉ GVCN lớp này mới xem được"></i>';
+                    let cursorClass = canViewDetail ? 'cursor-pointer hover:bg-sky-50' : '';
+
+                    tbody.innerHTML += `<tr class="${cursorClass} transition border-b border-gray-100" onclick="if(${canViewDetail}) window.openClassDetails('${r.classId}', ${globalActiveWeekId})"><td class="px-4 py-4 text-center whitespace-nowrap">${rankBadge}</td><td class="px-4 py-4 text-left whitespace-nowrap font-black text-gray-800">LỚP ${r.classId}</td><td class="px-4 py-4 text-center whitespace-nowrap font-black text-sky-600">${lsText}</td><td class="px-4 py-4 text-center whitespace-nowrap text-red-500 font-bold">-${r.totalDeduction}</td><td class="px-4 py-4 text-center whitespace-nowrap text-green-600 font-bold">+${r.totalBonus}</td><td class="px-4 py-4 text-center whitespace-nowrap font-black ${conductColor}">${r.conductScore}</td><td class="px-4 py-4 text-center whitespace-nowrap font-black text-lg text-sky-800 bg-sky-50/50">${totalText}</td><td class="px-4 py-4 text-center whitespace-nowrap">${eyeIcon}</td></tr>`;
+                });
+
+                // VẼ BIỂU ĐỒ CẢNH BÁO VI PHẠM
+                const warningClasses = results.filter(r => r.conductScore < 100).sort((a, b) => a.conductScore - b.conductScore);
+                
+                if(violationChartObj) { violationChartObj.destroy(); violationChartObj = null; }
+                
+                const ctx = document.getElementById('violationChart');
+                if(ctx && typeof Chart !== 'undefined') {
+                    const parent = ctx.parentElement;
+                    const noMsg = document.getElementById('no-warning-msg');
+                    if(noMsg) noMsg.remove();
+
+                    if(warningClasses.length === 0) {
+                        ctx.style.display = 'none';
+                        const msg = document.createElement('div');
+                        msg.id = 'no-warning-msg';
+                        msg.className = "absolute inset-0 flex items-center justify-center text-green-500 font-bold bg-green-50 rounded-xl border border-green-200 mt-2";
+                        msg.innerHTML = '<i class="fas fa-check-circle mr-2 text-2xl"></i> Tất cả các lớp đều thực hiện tốt Nề nếp!';
+                        parent.appendChild(msg);
+                    } else {
+                        ctx.style.display = 'block';
+                        violationChartObj = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: warningClasses.map(r => `Lớp ${r.classId}`),
+                                datasets: [{
+                                    label: 'Điểm Nề Nếp',
+                                    data: warningClasses.map(r => r.conductScore),
+                                    backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                                    borderColor: 'rgb(220, 38, 38)',
+                                    borderWidth: 1,
+                                    borderRadius: 4
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: { y: { beginAtZero: false, min: 0, max: 100 } },
+                                plugins: { legend: { display: false } }
+                            }
+                        });
+                    }
+                }
+            } catch(err) { console.error("Lỗi Dashboard:", err); }
+        };
+
+        window.openClassDetails = function(classId, wId) {
+            if(currentUserRole === 'gvcn' && currentUserClass !== classId) return window.showToast(`Bạn chỉ được xem chi tiết lớp ${currentUserClass}!`, "error");
+
+            currentModalClassId = classId; 
+            const targetWeekId = wId ? parseInt(wId) : globalActiveWeekId;
+            
+            const results = calculateResultsForWeek(targetWeekId).find(r => r.classId === classId);
+            
+            document.getElementById('modal-class-name').textContent = `LỚP ${classId}`; document.getElementById('modal-week-name').textContent = `Chi tiết điểm Tuần ${targetWeekId}`;
+            document.getElementById('modal-learning-score').textContent = results.learningScore !== null ? results.learningScore : '--'; document.getElementById('modal-deduction').textContent = `-${results.totalDeduction}`; document.getElementById('modal-bonus').textContent = `+${results.totalBonus}`; document.getElementById('modal-conduct').textContent = results.conductScore;
+            
+            let timeline = []; 
+            DB.violationsLog.filter(x => x.classId === classId && getWId(x) === targetWeekId).forEach(x => timeline.push({...x, type: 'minus'})); 
+            DB.bonusesLog.filter(x => x.classId === classId && getWId(x) === targetWeekId).forEach(x => timeline.push({...x, type: 'plus'}));
+            
+            let timelineHtml = '';
+            if(timeline.length === 0) { timelineHtml = `<div class="text-center p-8 bg-gray-50 rounded-xl border border-gray-100"><i class="fas fa-check-circle text-4xl text-green-400 mb-3 block"></i><p class="text-gray-500 font-bold">Không có ghi nhận vi phạm hay điểm cộng nào trong tuần này.</p></div>`; } else {
+                timeline.sort((a, b) => new Date(b.date) - new Date(a.date)); let currentDate = '';
+                timeline.forEach(item => {
+                    const dateObj = new Date(item.date); const dayNames = ["Chủ Nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+                    const dateStr = `${dayNames[dateObj.getDay()]}, ${dateObj.toLocaleDateString('vi-VN')}`;
+                    if(dateStr !== currentDate) { timelineHtml += `<div class="bg-gray-200 text-gray-700 font-bold text-xs py-1.5 px-4 rounded-lg inline-block mt-5 mb-2 shadow-sm">${dateStr}</div>`; currentDate = dateStr; }
+                    const isMinus = item.type === 'minus'; const color = isMinus ? 'red' : 'green'; const sign = isMinus ? '-' : '+';
+                    let deleteBtn = ''; if (currentUserRole === 'admin' || currentUserRole === 'codo') { deleteBtn = `<button onclick="window.deleteRecord('${item.type}', '${item.id}')" class="text-white ml-4 px-4 py-2.5 rounded-lg transition bg-red-500 hover:bg-red-600 shadow-md text-sm font-bold flex items-center gap-1.5"><i class="fas fa-trash-alt"></i></button>`; }
+                    timelineHtml += `<div class="bg-white p-4 rounded-xl border-l-4 border-${color}-500 shadow-sm flex justify-between items-center ml-2 border border-gray-100 hover:shadow-md transition"><div><p class="font-black text-gray-800 text-base">${item.name}</p><p class="text-xs font-bold text-gray-500 mt-1 bg-gray-100 inline-block px-2 py-0.5 rounded">Nhóm: ${item.group}</p> ${item.note ? `<p class="text-sm text-gray-600 mt-2 font-medium"><i class="fas fa-caret-right text-gray-400"></i> ${item.note}</p>` : ''}<p class="text-[10px] text-gray-400 mt-2">Người nhập: ${item.by}</p></div><div class="flex items-center"><div class="text-right"><span class="text-${color}-600 font-black text-2xl">${sign}${item.total}</span><p class="text-xs font-bold text-gray-400 mt-1 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">(${item.qty} ${isMinus ? 'lỗi' : 'lần'})</p></div>${deleteBtn}</div></div>`;
+                });
+            }
+            document.getElementById('modal-timeline').innerHTML = timelineHtml; document.getElementById('class-modal').classList.remove('hidden');
+        };
+        window.closeClassDetails = function() { document.getElementById('class-modal').classList.add('hidden'); currentModalClassId = null; };
+
+        window.deleteRecord = function(type, id) {
+            window.showDialog("Xác nhận xóa", "Hệ thống sẽ xóa điểm này và hoàn trả lại cho lớp.", "confirm", async function() {
+                if (!auth?.currentUser) return;
+                try { 
+                    if (type === 'minus') await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'violations', id)); 
+                    else await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bonuses', id)); 
+                    window.showToast("XÓA THÀNH CÔNG!", "success"); 
+                } catch(e) { window.showToast("Lỗi khi xóa!", "error"); }
+            });
+        };
+
+        window.finalizeWeek = function() {
+            window.showDialog("Chốt Tuần Hiện Tại", `Hệ thống sẽ đánh dấu Tuần ${globalActiveWeekId} là đã hoàn thành để cho phép xem ở mục Tra Cứu.\n\nĐồng chí không cần phải lo lắng về việc mất dữ liệu, bảng xếp hạng sẽ luôn tự động làm mới khi có thay đổi.`, "confirm", async function() {
+                if (!auth?.currentUser) return window.showToast("Mất kết nối Đám mây!", "error");
+                try {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'history', `week_${globalActiveWeekId}`), { 
+                        weekId: globalActiveWeekId, name: `Tuần ${globalActiveWeekId}`, dateFinalized: new Date().toISOString()
+                    });
+                    window.showToast("Đã chốt tuần thành công! Bạn có thể xuất báo cáo ở tab Tra Cứu.");
+                } catch(err) { window.showToast("Lỗi chốt tuần!", "error"); }
+            });
+        };
+
+        // ==========================================
+        // TRA CỨU LỊCH SỬ TRỰC TIẾP
+        // ==========================================
+        window.toggleHistoryMode = function() {
+            const mode = document.getElementById('history-view-mode').value;
+            const wSelect = document.getElementById('history-week-select'); const mSelect = document.getElementById('history-month-select'); const info = document.getElementById('monthly-summary-info');
+            const btnExport = document.getElementById('export-history-btn');
+
+            if(mode === 'week') {
+                wSelect.classList.remove('hidden'); mSelect.classList.add('hidden'); info.classList.add('hidden');
+                document.getElementById('col-learning-title').textContent = "Điểm Học Tập"; document.getElementById('col-deduct-title').textContent = "Lỗi (-)"; document.getElementById('col-bonus-title').textContent = "Cộng (+)"; document.getElementById('col-conduct-title').textContent = "Điểm Nề Nếp";
+                btnExport.innerHTML = '<i class="fas fa-file-word"></i> Xuất Báo Cáo (Word)';
+                window.populateHistorySelects();
+            } else {
+                wSelect.classList.add('hidden'); mSelect.classList.remove('hidden'); info.classList.remove('hidden');
+                document.getElementById('col-learning-title').textContent = "Học Tập (TB)"; document.getElementById('col-deduct-title').textContent = "Tổng Lỗi (-)"; document.getElementById('col-bonus-title').textContent = "Tổng Cộng (+)"; document.getElementById('col-conduct-title').textContent = "Nề Nếp (TB)";
+                btnExport.innerHTML = '<i class="fas fa-file-excel"></i> Xuất Báo Cáo (Excel)';
+                window.populateHistorySelects();
+            }
+        };
+
+        window.populateHistorySelects = function() {
+            const wSelect = document.getElementById('history-week-select'); const mSelect = document.getElementById('history-month-select');
+            
+            let currentWId = wSelect ? wSelect.value : "";
+            let currentMonth = mSelect ? mSelect.value : "";
+
+            if(wSelect) { 
+                wSelect.innerHTML = '<option value="">-- Chọn Tuần cần xem --</option>'; 
+                for(let i=1; i<=35; i++) { 
+                    let wInfo = DB.appConfig.weekSchedules.find(x => x.weekId === i); 
+                    let isFinalized = DB.history.some(h => h.weekId === i);
+                    let textStatus = isFinalized ? " (Đã chốt)" : "";
+                    wSelect.innerHTML += `<option value="${i}">Tuần ${i} ${wInfo ? '- '+wInfo.month : ''}${textStatus}</option>`; 
+                } 
+                if(currentWId) wSelect.value = currentWId;
+            }
+            if(mSelect) { 
+                mSelect.innerHTML = '<option value="">-- Chọn Tháng tổng hợp --</option>'; 
+                MONTH_LIST.forEach(m => { mSelect.innerHTML += `<option value="${m}">Tổng hợp ${m.toUpperCase()}</option>`; }); 
+                if(currentMonth) mSelect.value = currentMonth;
+            }
+            
+            if(!document.getElementById('welcome-banner').classList.contains('hidden')) return;
+            if(document.getElementById('view-history') && document.getElementById('view-history').classList.contains('block')) { window.viewHistoryData(); }
+        };
+
+        window.renderHistoryTableData = function(results) {
+            const tbody = document.getElementById('history-table-body'); tbody.innerHTML = '';
+            results.sort((a, b) => { if(a.rank && !b.rank) return -1; if(!a.rank && b.rank) return 1; return (a.rank || 99) - (b.rank || 99); });
+            results.forEach(r => {
+                let rankBadge = r.rank ? (r.rank <= 3 ? `<span class="bg-amber-100 text-amber-800 font-black px-3 py-1.5 rounded-lg text-xs shadow-sm border border-amber-200">Hạng ${r.rank}</span>` : `<span class="text-gray-600 font-bold">Hạng ${r.rank}</span>`) : `<span class="text-gray-400 text-xs font-semibold bg-gray-100 px-2 py-1 rounded">--</span>`; let conductColor = r.conductScore < 90 ? 'text-red-600' : 'text-sky-700';
+                let canViewDetail = (currentUserRole === 'admin' || currentUserRole === 'codo' || currentUserClass === r.classId);
+                let eyeIcon = canViewDetail ? '<i class="fas fa-search text-white bg-sky-500 hover:bg-sky-600 p-2 rounded-lg shadow-sm transition"></i>' : '<i class="fas fa-lock text-gray-300"></i>';
+                let clickAction = document.getElementById('history-view-mode').value === 'week' && canViewDetail ? `onclick="window.openClassDetails('${r.classId}', document.getElementById('history-week-select').value)" class="cursor-pointer hover:bg-gray-50 transition"` : `class="transition"`;
+
+                tbody.innerHTML += `<tr ${clickAction} class="border-b border-gray-100"><td class="px-4 py-4 text-center whitespace-nowrap">${rankBadge}</td><td class="px-4 py-4 text-left whitespace-nowrap font-black text-gray-800">LỚP ${r.classId}</td><td class="px-4 py-4 text-center whitespace-nowrap font-black text-sky-600">${r.learningScore !== null ? r.learningScore.toFixed(2) : '--'}</td><td class="px-4 py-4 text-center whitespace-nowrap text-red-500 font-bold">-${r.totalDeduction}</td><td class="px-4 py-4 text-center whitespace-nowrap text-green-600 font-bold">+${r.totalBonus}</td><td class="px-4 py-4 text-center whitespace-nowrap font-black ${conductColor}">${r.conductScore !== null ? r.conductScore.toFixed(2) : '--'}</td><td class="px-4 py-4 text-center whitespace-nowrap font-black text-lg text-sky-800 bg-sky-50/50">${r.totalScore !== null ? r.totalScore.toFixed(2) : '--'}</td><td class="px-4 py-4 text-center whitespace-nowrap">${document.getElementById('history-view-mode').value === 'week' ? eyeIcon : '--'}</td></tr>`;
+            });
+        }
+
+        let currentHistoryExportData = null;
+
+        window.viewHistoryData = function() {
+            const mode = document.getElementById('history-view-mode').value; const tbody = document.getElementById('history-table-body');
+            document.getElementById('export-history-btn').disabled = true;
+
+            if(mode === 'week') {
+                const wId = parseInt(document.getElementById('history-week-select').value);
+                if(!wId) { tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-12 text-center text-gray-400 font-medium italic"><i class="fas fa-inbox text-4xl block mb-2 text-gray-300"></i> Vui lòng chọn Tuần để xem</td></tr>'; return; }
+                const isFin = DB.history.some(h => h.weekId === wId);
+                if(!isFin) { tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-12 text-center text-red-500 font-bold bg-red-50"><i class="fas fa-exclamation-triangle text-3xl block mb-2 text-red-300"></i> Tuần ${wId} chưa được chốt</td></tr>`; return; }
+                
+                const results = calculateResultsForWeek(wId);
+                window.renderHistoryTableData(results);
+                currentHistoryExportData = { name: `TUẦN ${wId}`, results: results }; document.getElementById('export-history-btn').disabled = false;
+            } else {
+                const month = document.getElementById('history-month-select').value;
+                if(!month) { tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-12 text-center text-gray-400 font-medium italic"><i class="fas fa-inbox text-4xl block mb-2 text-gray-300"></i> Vui lòng chọn Tháng để xem</td></tr>'; return; }
+                
+                const targetWeekIds = DB.appConfig.weekSchedules.filter(w => w.month === month).map(w => w.weekId);
+                const validHistories = DB.history.filter(h => targetWeekIds.includes(h.weekId));
+                if(validHistories.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-12 text-center text-gray-500 font-bold bg-gray-50"><i class="fas fa-folder-open text-3xl block mb-2 text-gray-300"></i> Chưa có dữ liệu Tuần nào được chốt cho ${month}</td></tr>`; return; }
+
+                let monthResults = [];
+                CLASSES.forEach(c => {
+                    let sumL = 0, countL = 0; let sumC = 0, countC = 0; let sumDed = 0, sumBon = 0;
+                    targetWeekIds.forEach(wId => {
+                        let isFin = validHistories.some(h => h.weekId === wId);
+                        if(isFin) {
+                            let wResults = calculateResultsForWeek(wId);
+                            let r = wResults.find(x => x.classId === c);
+                            if(r) {
+                                if(r.learningScore !== null && r.learningScore !== undefined) { sumL += r.learningScore; countL++; }
+                                if(r.conductScore !== null && r.conductScore !== undefined) { sumC += r.conductScore; countC++; }
+                                sumDed += r.totalDeduction; sumBon += r.totalBonus;
+                            }
+                        }
+                    });
+                    let avgL = countL > 0 ? parseFloat((sumL / countL).toFixed(2)) : null; let avgC = countC > 0 ? parseFloat((sumC / countC).toFixed(2)) : null;
+                    let totalS = avgL !== null && avgC !== null ? parseFloat((avgL + avgC).toFixed(2)) : null;
+                    monthResults.push({ classId: c, learningScore: avgL, totalDeduction: sumDed, totalBonus: sumBon, conductScore: avgC, totalScore: totalS });
+                });
+
+                let rankable = monthResults.filter(r => r.totalScore !== null); rankable.sort((a, b) => b.totalScore - a.totalScore);
+                let currentRank = 1; for(let i = 0; i < rankable.length; i++) { if(i > 0 && rankable[i].totalScore === rankable[i-1].totalScore) rankable[i].rank = rankable[i-1].rank; else rankable[i].rank = currentRank; currentRank++; }
+
+                window.renderHistoryTableData(monthResults);
+                currentHistoryExportData = { name: `TỔNG HỢP ${month.toUpperCase()}`, results: monthResults }; document.getElementById('export-history-btn').disabled = false;
+            }
+        };
+
+        // ==========================================
+        // XUẤT BÁO CÁO WORD
+        // ==========================================
+        window.exportWordReport = function(targetWeekId) {
+            if (targetWeekId !== globalActiveWeekId) {
+                const isFinalized = DB.history.some(h => h.weekId === targetWeekId);
+                if (!isFinalized) return window.showToast("Tuần này chưa được chốt!", "error");
+            }
+
+            let results = calculateResultsForWeek(targetWeekId);
+            let vListAll = DB.violationsLog.filter(x => getWId(x) === targetWeekId);
+            let bListAll = DB.bonusesLog.filter(x => getWId(x) === targetWeekId);
+
+            const wInfo = DB.appConfig.weekSchedules.find(x => x.weekId === targetWeekId);
+            const startDate = wInfo && wInfo.start ? new Date(wInfo.start).toLocaleDateString('vi-VN') : '...';
+            const endDate = wInfo && wInfo.end ? new Date(wInfo.end).toLocaleDateString('vi-VN') : '...';
+            const today = new Date(); const dd = String(today.getDate()).padStart(2, '0'); const mm = String(today.getMonth() + 1).padStart(2, '0'); const yyyy = today.getFullYear();
+
+            let planObj = DB.appConfig.plans?.[targetWeekId] || {};
+            let pNenNep = planObj.nenNep ? planObj.nenNep : "..........................................................................................................................";
+            let pHocTap = planObj.hocTap ? planObj.hocTap : "................................................................................................................................";
+            let pVeSinh = planObj.veSinh ? planObj.veSinh : ".......................................................................................................................";
+            let pPhongTrao = planObj.phongTrao ? planObj.phongTrao : ".................................................................................................................";
+            let pKhac = planObj.khac ? planObj.khac : "...................................................................................................................................";
+
+            let planHtml = `
+                <div style="margin-bottom:8px;">- Về nền nếp – tác phong: ${pNenNep}</div>
+                <div style="margin-bottom:8px;">- Về học tập: ${pHocTap}</div>
+                <div style="margin-bottom:8px;">- Về vệ sinh – lao động: ${pVeSinh}</div>
+                <div style="margin-bottom:8px;">- Về phong trào Đoàn – Đội: ${pPhongTrao}</div>
+                <div style="margin-bottom:8px;">- Nội dung khác: ${pKhac}</div>
+            `;
+
+            let rankableResults = [...results].sort((a,b) => { if(a.rank && !b.rank) return -1; if(!a.rank && b.rank) return 1; return (a.rank || 99) - (b.rank || 99); });
+            let tbodyRank = "";
+            rankableResults.forEach(r => { 
+                tbodyRank += `<tr><td style="border:1pt solid black; padding:5px; text-align:center;">${r.rank ? r.rank : '--'}</td><td style="border:1pt solid black; padding:5px; text-align:center; font-weight:bold;">Lớp ${r.classId}</td><td style="border:1pt solid black; padding:5px; text-align:center;">${r.learningScore !== null ? r.learningScore : '--'}</td><td style="border:1pt solid black; padding:5px; text-align:center;">${r.totalDeduction}</td><td style="border:1pt solid black; padding:5px; text-align:center;">${r.totalBonus}</td><td style="border:1pt solid black; padding:5px; text-align:center;">${r.conductScore}</td><td style="border:1pt solid black; padding:5px; text-align:center; font-weight:bold;">${r.totalScore !== null ? r.totalScore : '--'}</td></tr>`; 
+            });
+
+            // BẢNG ĐIỂM TRỪ
+            let tbodyVio = ""; let hasVio = false;
+            CLASSES.forEach(c => {
+                let cVio = vListAll.filter(x => x.classId === c);
+                if(cVio.length > 0) {
+                    hasVio = true; 
+                    tbodyVio += `<tr><td colspan="5" style="border:1pt solid black; padding:5px; font-weight:bold; background-color:#f2f2f2; text-align:left;">LỚP ${c}</td></tr>`;
+                    cVio.forEach((v, idx) => { 
+                        tbodyVio += `<tr><td style="border:1pt solid black; padding:5px; text-align:center;">${idx+1}</td><td style="border:1pt solid black; padding:5px;">${v.name}</td><td style="border:1pt solid black; padding:5px; text-align:center;">${v.qty}</td><td style="border:1pt solid black; padding:5px; text-align:center;">${v.total}</td><td style="border:1pt solid black; padding:5px;">${v.note || ''}</td></tr>`; 
+                    });
+                }
+            });
+            if(!hasVio) tbodyVio += `<tr><td colspan="5" style="border:1pt solid black; padding:5px; text-align:center; font-style:italic;">Không có lớp nào vi phạm trong tuần này.</td></tr>`;
+
+            // BẢNG ĐIỂM CỘNG
+            let tbodyBonus = ""; let hasBonus = false;
+            CLASSES.forEach(c => {
+                let cBonus = bListAll.filter(x => x.classId === c);
+                if(cBonus.length > 0) {
+                    hasBonus = true; 
+                    tbodyBonus += `<tr><td colspan="5" style="border:1pt solid black; padding:5px; font-weight:bold; background-color:#f2f2f2; text-align:left;">LỚP ${c}</td></tr>`;
+                    cBonus.forEach((b, idx) => { 
+                        tbodyBonus += `<tr><td style="border:1pt solid black; padding:5px; text-align:center;">${idx+1}</td><td style="border:1pt solid black; padding:5px;">${b.name}</td><td style="border:1pt solid black; padding:5px; text-align:center;">${b.qty}</td><td style="border:1pt solid black; padding:5px; text-align:center;">${b.total}</td><td style="border:1pt solid black; padding:5px;">${b.note || ''}</td></tr>`; 
+                    });
+                }
+            });
+            if(!hasBonus) tbodyBonus += `<tr><td colspan="5" style="border:1pt solid black; padding:5px; text-align:center; font-style:italic;">Không có lớp nào được cộng điểm trong tuần này.</td></tr>`;
+
+            let htmlContent = `
+                <table style="width:100%; border:none; border-collapse:collapse; margin-bottom:20px; font-size:14pt; font-family:'Times New Roman',serif;"><tr><td style="width:40%; text-align:center; border:none; vertical-align:top;">ĐOÀN TRƯỜNG PTDTNT THCS<br>VÀ THPT ĐẮK SONG<br><span style="font-weight:bold; text-decoration:underline;">BAN THI ĐUA NỀN NẾP</span><br>Số: ......../TB-ĐTN</td><td style="width:60%; text-align:center; border:none; vertical-align:top;"><span style="font-weight:bold;">ĐOÀN TNCS HỒ CHÍ MINH</span><br><span style="font-style:italic;">Đắk Song, ngày ${dd} tháng ${mm} năm ${yyyy}</span></td></tr></table>
+                <div style="text-align:center; font-family:'Times New Roman',serif;"><div style="font-weight:bold; font-size:15pt; margin-bottom:5px;">KẾT QUẢ THI ĐUA NỀN NẾP TUẦN ${targetWeekId}</div><div style="font-style:italic; font-size:13pt; margin-bottom:20px;">(Từ ngày ${startDate} đến ngày ${endDate})</div></div>
+                
+                <div style="font-weight:bold; font-size:14pt; margin-bottom:10px; margin-top:20px; font-family:'Times New Roman',serif;">I. KẾT QUẢ THI ĐUA (BẢNG TỔNG KẾT)</div>
+                <table style="width:100%; border-collapse:collapse; font-size:13pt; font-family:'Times New Roman',serif; margin-bottom:20px;">
+                    <tr>
+                        <th style="width:8%; padding:5px; border:1pt solid black;">Hạng</th>
+                        <th style="width:15%; padding:5px; border:1pt solid black;">Lớp</th>
+                        <th style="width:12%; padding:5px; border:1pt solid black;">Điểm<br>học tập</th>
+                        <th style="width:12%; padding:5px; border:1pt solid black;">Lỗi (-)</th>
+                        <th style="width:12%; padding:5px; border:1pt solid black;">Cộng (+)</th>
+                        <th style="width:15%; padding:5px; border:1pt solid black;">Điểm<br>nền nếp</th>
+                        <th style="width:26%; padding:5px; border:1pt solid black;">Tổng điểm<br>thi đua</th>
+                    </tr>
+                    ${tbodyRank}
+                </table>
+                
+                <div style="font-weight:bold; font-size:14pt; margin-bottom:10px; margin-top:20px; font-family:'Times New Roman',serif;">II. LỖI CHI TIẾT CỦA TỪNG LỚP</div>
+                <table style="width:100%; border-collapse:collapse; font-size:13pt; font-family:'Times New Roman',serif; margin-bottom:20px;">
+                    <tr>
+                        <th style="width:8%; padding:5px; border:1pt solid black;">STT</th>
+                        <th style="width:45%; padding:5px; border:1pt solid black;">Nội dung vi phạm</th>
+                        <th style="width:12%; padding:5px; border:1pt solid black;">Số lượng</th>
+                        <th style="width:12%; padding:5px; border:1pt solid black;">Điểm trừ</th>
+                        <th style="width:23%; padding:5px; border:1pt solid black;">Ghi chú</th>
+                    </tr>
+                    ${tbodyVio}
+                </table>
+
+                <div style="font-weight:bold; font-size:14pt; margin-bottom:10px; margin-top:20px; font-family:'Times New Roman',serif;">III. ĐIỂM CỘNG CHI TIẾT CỦA TỪNG LỚP</div>
+                <table style="width:100%; border-collapse:collapse; font-size:13pt; font-family:'Times New Roman',serif; margin-bottom:20px;">
+                    <tr>
+                        <th style="width:8%; padding:5px; border:1pt solid black;">STT</th>
+                        <th style="width:45%; padding:5px; border:1pt solid black;">Nội dung thành tích</th>
+                        <th style="width:12%; padding:5px; border:1pt solid black;">Số lượng</th>
+                        <th style="width:12%; padding:5px; border:1pt solid black;">Điểm cộng</th>
+                        <th style="width:23%; padding:5px; border:1pt solid black;">Ghi chú</th>
+                    </tr>
+                    ${tbodyBonus}
+                </table>
+
+                <div style="font-weight:bold; font-size:14pt; margin-bottom:10px; margin-top:20px; font-family:'Times New Roman',serif;">IV. KẾ HOẠCH TUẦN TỚI</div>
+                <div style="font-size:14pt; font-family:'Times New Roman',serif; line-height:1.5;">${planHtml}</div>
+                <table style="width:100%; border:none; border-collapse:collapse; margin-top:30px; font-size:14pt; font-family:'Times New Roman',serif; page-break-inside: avoid;"><tr><td style="width:40%; border:none; vertical-align:top; font-size:12pt; font-style:italic;"><div style="font-weight:bold; font-style:normal;">Nơi nhận:</div>- Ban Giám hiệu (để b/c);<br>- GVCN các lớp (để t/h);<br>- Lưu: VT, Đoàn trường.</td><td style="width:60%; text-align:center; border:none; vertical-align:top;"><div style="font-weight:bold;">TM. BCH ĐOÀN TRƯỜNG</div><div style="font-weight:bold;">PHÓ BÍ THƯ</div><br><br><br><br><br><div style="font-weight:bold;">Nguyễn Văn Đạo</div></td></tr></table>
+            `;
+
+            var header = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head>
+                <meta charset='utf-8'>
+                <title>Báo Cáo</title>
+                <style>
+                    @page WordSection1 {
+                        size: 595.3pt 841.9pt; 
+                        margin: 56.7pt 56.7pt 56.7pt 70.9pt; 
+                        mso-header-margin: 35.4pt;
+                        mso-footer-margin: 35.4pt;
+                        mso-paper-source: 0;
+                    }
+                    div.WordSection1 { page: WordSection1; }
+                    p { margin: 0; padding: 0; }
+                </style>
+            </head>
+            <body><div class="WordSection1">
+            `;
+            var footer = "</div></body></html>";
+            var sourceHTML = header + htmlContent + footer;
+
+            var blob = new Blob(['\ufeff', sourceHTML], { type: 'application/msword' });
+            var url = URL.createObjectURL(blob); var link = document.createElement("a"); link.href = url; link.download = `Bao_Cao_Tuan_${targetWeekId}.doc`;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link); window.showToast("Đã tải xuống file Báo cáo Word!");
+        };
+
+        window.handleHistoryExport = function() {
+            const mode = document.getElementById('history-view-mode').value;
+            if(mode === 'week') {
+                const wId = parseInt(document.getElementById('history-week-select').value);
+                if(!wId) return window.showToast("Vui lòng chọn tuần!", "warning");
+                window.exportWordReport(wId);
+            } else {
+                if(!currentHistoryExportData) return window.showToast("Chưa có dữ liệu Tháng!", "warning");
+                const exportData = [ ["TRƯỜNG PTDTNT THCS & THPT ĐẮK SONG"], [`KẾT QUẢ - ${currentHistoryExportData.name}`], [`Năm học: ${DB.appConfig.academicYear}`], [], ["Hạng", "Lớp", "Điểm Học Tập", "Tổng Lỗi", "Tổng Cộng", "Điểm Nề Nếp", "Tổng Điểm"] ];
+                currentHistoryExportData.results.forEach(r => exportData.push([r.rank || "--", `Lớp ${r.classId}`, r.learningScore !== null ? r.learningScore : "Chưa có", r.totalDeduction, r.totalBonus, r.conductScore, r.totalScore !== null ? r.totalScore : "--"]));
+                const ws = XLSX.utils.aoa_to_sheet(exportData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "XepHang"); XLSX.writeFile(wb, `BaoCao_${currentHistoryExportData.name.replace(/ /g, '')}.xlsx`);
+            }
+        };
+
+        // ==========================================
+        // QUẢN LÝ DANH MỤC THI ĐUA (DICTIONARY)
+        // ==========================================
+        window.renderDictTable = function() {
+            const tbody = document.getElementById('dict-table-body'); if(!tbody) return; tbody.innerHTML = '';
+            const allItems = [...violationDict.map(x => ({...x, type: 'MINUS'})), ...bonusDict.map(x => ({...x, type: 'PLUS'}))];
+            allItems.sort((a, b) => a.group.localeCompare(b.group));
+            allItems.forEach(item => {
+                const isMinus = item.type === 'MINUS'; const typeHtml = isMinus ? '<span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold">Lỗi (-)</span>' : '<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">Cộng (+)</span>';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="px-5 py-4 whitespace-nowrap">${typeHtml}</td><td class="px-5 py-4 font-bold text-gray-700">${item.group}</td><td class="px-5 py-4 font-black text-gray-800">${item.code}</td><td class="px-5 py-4 text-gray-600 font-medium">${item.name}</td><td class="px-5 py-4 text-center font-black ${isMinus ? 'text-red-600' : 'text-green-600'} text-lg">${isMinus ? '-' : '+'}${item.score}</td><td class="px-5 py-4 text-center"><button onclick="window.deleteManualCategory('${item.type}', '${item.code}')" class="text-red-500 hover:text-white hover:bg-red-500 p-2 rounded-lg transition"><i class="fas fa-trash"></i></button></td>`;
+                tbody.appendChild(tr);
+            });
+        };
+
+        window.saveManualCategory = async function(e) {
+            e.preventDefault(); if(!auth?.currentUser) return window.showToast("Mất kết nối Đám mây!", "error");
+            const type = document.getElementById('man-type').value; const code = document.getElementById('man-code').value.trim().toUpperCase(); const group = document.getElementById('man-group').value.trim(); const name = document.getElementById('man-name').value.trim(); const score = parseInt(document.getElementById('man-score').value);
+            if(!code || !group || !name || isNaN(score)) return;
+            const newItem = { code, group, name, score, unit: type === 'MINUS' ? 'Lần/HS' : 'Lần' };
+            
+            let newVio = [...violationDict]; let newBonus = [...bonusDict];
+            if (type === 'MINUS') { const idx = newVio.findIndex(x => x.code === code); if(idx >= 0) newVio[idx] = newItem; else newVio.push(newItem); } 
+            else { const idx = newBonus.findIndex(x => x.code === code); if(idx >= 0) newBonus[idx] = newItem; else newBonus.push(newItem); }
+            
+            try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'dicts'), { violations: newVio, bonuses: newBonus }); window.showToast("Đã lưu danh mục!"); document.getElementById('cat-form').reset(); } 
+            catch(err) { window.showToast("Lỗi lưu danh mục!", "error"); }
+        };
+
+        window.deleteManualCategory = function(type, code) {
+            window.showDialog("Xóa hạng mục?", `Bạn có chắc muốn xóa mã ${code} khỏi hệ thống?`, "confirm", async function() {
+                if(!auth?.currentUser) return;
+                let newVio = [...violationDict]; let newBonus = [...bonusDict];
+                if(type === 'MINUS') newVio = newVio.filter(x => x.code !== code); else newBonus = newBonus.filter(x => x.code !== code);
+                try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'dicts'), { violations: newVio, bonuses: newBonus }); window.showToast("Đã xóa hạng mục!"); } 
+                catch(err) { window.showToast("Lỗi khi xóa!", "error"); }
+            });
+        };
+
+        window.forceSyncDictToCloud = async function() {
+            if(!auth?.currentUser) return window.showToast("Lỗi kết nối Đám mây!", "error");
+            window.showDialog("Khôi phục Thang điểm?", "Hành động này sẽ ghi đè toàn bộ danh mục hiện tại bằng Thang điểm chuẩn ban đầu. Bạn có chắc chắn?", "confirm", async function() {
+                try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'dicts'), { violations: DEFAULT_VIOLATIONS, bonuses: DEFAULT_BONUSES }); window.showToast("Đã khôi phục thang điểm chuẩn!"); } 
+                catch(err) { window.showToast("Lỗi khôi phục!", "error"); }
+            });
+        };
+
+        window.resetCatForm = function() { document.getElementById('cat-form').reset(); };
+
+        // ==========================================
+        // QUẢN TRỊ TÀI KHOẢN (USERS)
+        // ==========================================
+        window.renderUsersTable = function() {
+            const tbody = document.getElementById('users-table-body'); if(!tbody) return; tbody.innerHTML = '';
+            DB.users.forEach(u => {
+                const docKey = u.firestoreId || u.id;
+                const displayName = u.displayName || u.name || u.username || 'Người dùng';
+                let roleText = ''; 
+                if(u.role === 'admin') roleText = '<span class="bg-red-100 text-red-800 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider shadow-sm">Admin</span>'; 
+                else if(u.role === 'codo') roleText = '<span class="bg-amber-100 text-amber-800 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider shadow-sm">Cờ Đỏ</span>'; 
+                else roleText = `<span class="bg-sky-100 text-sky-800 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider shadow-sm">GVCN ${u.managedClass || ''}</span>`;
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="px-5 py-4 font-bold text-gray-800 text-base">${displayName}</td><td class="px-5 py-4 font-black text-sky-700">${u.username} <span class="text-xs text-gray-400 font-medium block mt-1">Pass: ${u.password}</span></td><td class="px-5 py-4">${roleText}</td><td class="px-5 py-4 text-center"><button onclick="window.editUser('${docKey}')" class="text-blue-500 hover:text-white hover:bg-blue-500 p-2 rounded-lg transition mr-2"><i class="fas fa-edit"></i></button><button onclick="window.deleteUser('${docKey}')" class="text-red-500 hover:text-white hover:bg-red-500 p-2 rounded-lg transition"><i class="fas fa-trash"></i></button></td>`;
+                tbody.appendChild(tr);
+            });
+        };
+
+        window.saveUser = async function(e) {
+            e.preventDefault(); if(!auth?.currentUser) return window.showToast("Mất kết nối Đám mây!", "error");
+            const id = document.getElementById('edit-user-id').value || 'u_' + Date.now();
+            const role = document.getElementById('user-role').value;
+            const managedClass = role === 'gvcn' ? document.getElementById('user-managedclass').value : null;
+            if (role === 'gvcn' && !managedClass) return window.showToast("Vui lòng chọn Lớp chủ nhiệm!", "warning");
+            const displayName = document.getElementById('user-displayname').value.trim();
+            const username = document.getElementById('user-username').value.trim();
+            const password = document.getElementById('user-password').value.trim();
+            let roleName = 'Giáo viên Chủ nhiệm'; if(role === 'admin') roleName = 'Quản trị viên'; else if(role === 'codo') roleName = 'Đội Cờ Đỏ';
+
+            const userObj = { id, role, managedClass, displayName, username, password, roleName };
+            try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id), userObj); window.showToast("Đã lưu Tài khoản!"); window.resetUserForm(); } 
+            catch(err) { window.showToast("Lỗi lưu tài khoản!", "error"); }
+        };
+
+        window.editUser = function(key) {
+            const u = DB.users.find(x => x.firestoreId === key || x.id === key); if(!u) return;
+            window.updateClassSelectsUI();
+            document.getElementById('edit-user-id').value = u.firestoreId || u.id; 
+            document.getElementById('user-role').value = u.role;
+            document.getElementById('user-displayname').value = u.displayName || u.name || u.username || ''; 
+            document.getElementById('user-username').value = u.username || ''; 
+            document.getElementById('user-password').value = u.password || '';
+            if(u.role === 'gvcn') { 
+                document.getElementById('gvcn-class-wrapper').style.display = 'block'; 
+                document.getElementById('user-managedclass').value = u.managedClass || ''; 
+            } else { 
+                document.getElementById('gvcn-class-wrapper').style.display = 'none'; 
+            }
+            document.getElementById('btn-cancel-user').classList.remove('hidden');
+        };
+
+        window.deleteUser = function(firestoreId) {
+            window.showDialog("Xóa tài khoản?", "Bạn có chắc muốn xóa tài khoản này?", "confirm", async function() {
+                if(!auth?.currentUser) return;
+                try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', firestoreId)); window.showToast("Đã xóa tài khoản!"); } 
+                catch(err) { window.showToast("Lỗi khi xóa!", "error"); }
+            });
+        };
+
+        window.resetUserForm = function() {
+            document.getElementById('user-form').reset(); document.getElementById('edit-user-id').value = '';
+            document.getElementById('btn-cancel-user').classList.add('hidden');
+            document.getElementById('gvcn-class-wrapper').style.display = 'block';
+        };
+
+        document.getElementById('user-role').addEventListener('change', function(e) {
+            document.getElementById('gvcn-class-wrapper').style.display = e.target.value === 'gvcn' ? 'block' : 'none';
+        });
+
+        // ==========================================
+        // MENU NAVIGATION & BANNER
+        // ==========================================
+        window.switchView = function(viewName) {
+            document.getElementById('welcome-banner').classList.add('hidden');
+            document.getElementById('views-container').classList.remove('hidden');
+
+            ['dashboard', 'history', 'violation', 'bonus', 'learning', 'admin', 'profiles'].forEach(v => {
+                const el = document.getElementById(`view-${v}`); 
+                if (el) el.classList.toggle('hidden', v !== viewName); 
+                if (el) el.classList.toggle('block', v === viewName);
+            });
+            
+            const titles = {
+                'dashboard': 'Bảng Xếp hạng', 'history': 'Tra Cứu & Báo Cáo', 'violation': 'Ghi nhận Lỗi Vi phạm',
+                'bonus': 'Ghi nhận Điểm cộng', 'learning': 'Sổ Đầu Bài', 'admin': 'Cấu hình Hệ thống', 'profiles': 'Quản lý Tài khoản'
+            };
+            document.getElementById('breadcrumb-title').textContent = titles[viewName];
+
+            if (viewName === 'dashboard') { window.renderDashboard(); window.renderAdminPlan(); window.renderSHDCSchedule(); }
+            if (viewName === 'history') window.toggleHistoryMode();
+            if (viewName === 'learning') window.renderLearningScores();
+            if (viewName === 'admin') window.renderDictTable(); 
+            if (viewName === 'profiles' && currentUserRole === 'admin') { window.updateClassSelectsUI(); window.renderUsersTable(); }
+        };
+
+        window.showWelcomeBanner = function() {
+            document.getElementById('welcome-banner').classList.remove('hidden');
+            document.getElementById('views-container').classList.add('hidden');
+            document.getElementById('breadcrumb-title').textContent = 'Bảng tin hệ thống';
+        };
+
+        document.getElementById('login-form').addEventListener('submit', window.handleLogin);
+    </script>
+</body>
+</html>
