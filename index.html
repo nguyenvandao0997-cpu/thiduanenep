@@ -746,6 +746,22 @@
         const fullDayLabel = s => `${DAY_NAMES[parseYMD(s).getDay()]}, ${viDate(s)}`;
         const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+        // Thời điểm nhập: ưu tiên giờ máy chủ Google (chính xác kể cả khi đồng hồ điện thoại sai), luôn hiển thị theo giờ Việt Nam
+        const VN_TIME_FMT = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric', weekday: 'short', hour12: false });
+        const VN_WEEKDAY = { Mon: 'Thứ 2', Tue: 'Thứ 3', Wed: 'Thứ 4', Thu: 'Thứ 5', Fri: 'Thứ 6', Sat: 'Thứ 7', Sun: 'Chủ nhật' };
+        const entryTimeLabel = (it) => {
+            let d = null;
+            if (it.createdAtServer && typeof it.createdAtServer.toDate === 'function') d = it.createdAtServer.toDate();
+            else if (it.createdAt) d = new Date(it.createdAt);
+            if (!d || isNaN(d.getTime())) return '';
+            const p = {}; VN_TIME_FMT.formatToParts(d).forEach(x => p[x.type] = x.value);
+            return `${p.hour}:${p.minute} - ${VN_WEEKDAY[p.weekday] || ''}, ${p.day}/${p.month}/${p.year}`;
+        };
+        const entryByHtml = (it, label) => {
+            const t = entryTimeLabel(it);
+            return `<p class="text-[11px] text-gray-500 mt-2"><i class="fas fa-user-edit mr-1"></i>${label}: <b>${escapeHtml(it.by || '')}</b>${t ? ` <span class="ml-1 inline-flex items-center gap-1 bg-gray-100 border border-gray-200 text-gray-600 px-1.5 py-0.5 rounded"><i class="far fa-clock"></i> ${t}</span>` : ' <span class="text-gray-400 italic">(không có giờ nhập)</span>'}</p>`;
+        };
+
         const getSchedules = () => DB.appConfig.weekSchedules || [];
         const totalWeeks = () => getSchedules().length || 38;
         const weekInfo = id => getSchedules().find(w => w.weekId === id);
@@ -1418,7 +1434,7 @@
             const totalScore = exempt ? 0 : item.score * qty;
             if (exempt) note = `[Có giấy đi viện - không trừ điểm]${note ? ' ' + note : ''}`;
             try {
-                await addDoc(collection(db, ...BASE, 'violations'), { weekId: targetWeekId, classId, date, code, name: item.name, group: item.group, qty, score: exempt ? 0 : item.score, total: totalScore, exempt, note, by: currentUserName, status: 'pending', createdAt: new Date().toISOString() });
+                await addDoc(collection(db, ...BASE, 'violations'), { weekId: targetWeekId, classId, date, code, name: item.name, group: item.group, qty, score: exempt ? 0 : item.score, total: totalScore, exempt, note, by: currentUserName, status: 'pending', createdAt: new Date().toISOString(), createdAtServer: firebase.firestore.FieldValue.serverTimestamp() });
                 window.showToast(exempt ? `Đã ghi nhận sĩ số (có giấy viện, không trừ điểm) - Tuần ${targetWeekId}` : `Đã ghi nhận trừ ${totalScore}đ vào Tuần ${targetWeekId}`);
                 document.getElementById('violation-qty').value = 1; document.getElementById('violation-note').value = ""; document.getElementById('violation-hospital').checked = false; window.updateViolationPreview();
             } catch (err) { window.showToast("Lỗi mạng!", "error"); }
@@ -1433,7 +1449,7 @@
             const qty = parseInt(document.getElementById('bonus-qty').value) || 1; const date = dateInput.value; const note = document.getElementById('bonus-note').value.trim();
             const item = bonusDict.find(v => v.code === code); if (!item) return; const totalScore = item.score * qty;
             try {
-                await addDoc(collection(db, ...BASE, 'bonuses'), { weekId: targetWeekId, classId, date, code, name: item.name, group: item.group, qty, score: item.score, total: totalScore, note, by: currentUserName, status: 'pending', createdAt: new Date().toISOString() });
+                await addDoc(collection(db, ...BASE, 'bonuses'), { weekId: targetWeekId, classId, date, code, name: item.name, group: item.group, qty, score: item.score, total: totalScore, note, by: currentUserName, status: 'pending', createdAt: new Date().toISOString(), createdAtServer: firebase.firestore.FieldValue.serverTimestamp() });
                 window.showToast(`Đã ghi nhận cộng ${totalScore}đ vào Tuần ${targetWeekId}`);
                 document.getElementById('bonus-qty').value = 1; document.getElementById('bonus-note').value = ""; window.updateBonusPreview();
             } catch (err) { window.showToast("Lỗi mạng!", "error"); }
@@ -1513,7 +1529,7 @@
                             <div class="flex flex-wrap items-center gap-2 mb-1"><span class="font-black text-gray-800">LỚP ${escapeHtml(it.classId)}</span><span class="text-xs font-bold text-gray-500">${it.date ? fullDayLabel(it.date) : ''} · Tuần ${getWId(it)}</span>${STATUS_BADGE[st] || ''}${it.exempt ? '<span class="bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded text-[11px] font-black">Có giấy viện</span>' : ''}</div>
                             <p class="font-bold text-gray-800">${escapeHtml(it.name)}</p>
                             ${it.note ? `<p class="text-sm text-gray-600 mt-1"><i class="fas fa-caret-right text-gray-400"></i> ${escapeHtml(it.note)}</p>` : ''}
-                            <p class="text-[11px] text-gray-400 mt-1">Người chấm: ${escapeHtml(it.by || '')}</p>
+                            ${entryByHtml(it, 'Người nhập')}
                             ${resolveInfo}${disputeInfo}
                         </div>
                         <div class="text-right flex-shrink-0"><span class="text-${color}-600 font-black text-2xl">${isMinus ? '-' : '+'}${it.total}</span><p class="text-xs font-bold text-gray-400">(${it.qty} ${isMinus ? 'lỗi' : 'lần'})</p></div>
@@ -1730,7 +1746,7 @@
                     if (dateStr !== currentDate) { html += `<div class="bg-gray-200 text-gray-700 font-bold text-xs py-1.5 px-4 rounded-lg inline-block mt-5 mb-2 shadow-sm">${dateStr}</div>`; currentDate = dateStr; }
                     const isMinus = item.type === 'minus'; const color = isMinus ? 'red' : 'green'; const sign = isMinus ? '-' : '+';
                     const deleteBtn = (currentUserRole === 'admin' || currentUserRole === 'codo') ? `<button onclick="window.deleteRecord('${item.type}', '${item.id}')" class="text-white ml-4 px-4 py-2.5 rounded-lg transition bg-red-500 hover:bg-red-600 shadow-md text-sm font-bold flex items-center gap-1.5"><i class="fas fa-trash-alt"></i></button>` : '';
-                    html += `<div class="bg-white p-4 rounded-xl border-l-4 border-${color}-500 shadow-sm flex justify-between items-center ml-2 border border-gray-100 hover:shadow-md transition"><div><p class="font-black text-gray-800 text-base">${escapeHtml(item.name)}</p><div class="flex flex-wrap gap-2 mt-1"><span class="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Nhóm: ${escapeHtml(item.group)}</span>${STATUS_BADGE[statusOf(item)] || ''}</div>${item.note ? `<p class="text-sm text-gray-600 mt-2 font-medium"><i class="fas fa-caret-right text-gray-400"></i> ${escapeHtml(item.note)}</p>` : ''}${item.disputeReason ? `<p class="text-xs text-red-700 mt-1"><b>Khiếu nại:</b> ${escapeHtml(item.disputeReason)}</p>` : ''}<p class="text-[10px] text-gray-400 mt-2">Người nhập: ${escapeHtml(item.by || '')}</p></div><div class="flex items-center"><div class="text-right"><span class="text-${color}-600 font-black text-2xl">${sign}${item.total}</span><p class="text-xs font-bold text-gray-400 mt-1 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">(${item.qty} ${isMinus ? 'lỗi' : 'lần'})</p></div>${deleteBtn}</div></div>`;
+                    html += `<div class="bg-white p-4 rounded-xl border-l-4 border-${color}-500 shadow-sm flex justify-between items-center ml-2 border border-gray-100 hover:shadow-md transition"><div><p class="font-black text-gray-800 text-base">${escapeHtml(item.name)}</p><div class="flex flex-wrap gap-2 mt-1"><span class="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Nhóm: ${escapeHtml(item.group)}</span>${STATUS_BADGE[statusOf(item)] || ''}</div>${item.note ? `<p class="text-sm text-gray-600 mt-2 font-medium"><i class="fas fa-caret-right text-gray-400"></i> ${escapeHtml(item.note)}</p>` : ''}${item.disputeReason ? `<p class="text-xs text-red-700 mt-1"><b>Khiếu nại:</b> ${escapeHtml(item.disputeReason)}</p>` : ''}${entryByHtml(item, 'Người nhập')}</div><div class="flex items-center"><div class="text-right"><span class="text-${color}-600 font-black text-2xl">${sign}${item.total}</span><p class="text-xs font-bold text-gray-400 mt-1 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">(${item.qty} ${isMinus ? 'lỗi' : 'lần'})</p></div>${deleteBtn}</div></div>`;
                 });
             }
             document.getElementById('modal-timeline').innerHTML = html; document.getElementById('class-modal').classList.remove('hidden');
